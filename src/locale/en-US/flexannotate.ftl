@@ -27,6 +27,11 @@ flexannotate-button-save =
 flexannotate-button-cancel =
     .label = Cancel
 
+# In the citation dialog: an HTML <label>, so a plain value rather than XUL .value
+flexannotate-dialog-mode-label = Insert as
+flexannotate-dialog-mode-full = Full annotation (quotation and citation)
+flexannotate-dialog-mode-citation = Citation only
+
 flexannotate-prefs-citing-heading = Citing
 flexannotate-prefs-citation-only =
     .label = Insert citation only by default

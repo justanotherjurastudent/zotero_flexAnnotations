@@ -18,14 +18,17 @@ FlexAnnotate = {
 		Services.scriptloader.loadSubScript(rootURI + 'printAnnotations.js');
 		Services.scriptloader.loadSubScript(rootURI + 'integrationPatch.js');
 		Services.scriptloader.loadSubScript(rootURI + 'dialog.js');
+		Services.scriptloader.loadSubScript(rootURI + 'citationDialogPatch.js');
 	},
 
 	uninit() {
-		try {
-			this.IntegrationPatch.unpatch();
-		}
-		catch (e) {
-			this.logError(e);
+		for (let patch of [this.IntegrationPatch, this.CitationDialogPatch]) {
+			try {
+				patch.unpatch();
+			}
+			catch (e) {
+				this.logError(e);
+			}
 		}
 	},
 
@@ -52,6 +55,7 @@ FlexAnnotate = {
 
 	async main() {
 		this.IntegrationPatch.patch();
+		this.CitationDialogPatch.patch();
 	},
 
 	//

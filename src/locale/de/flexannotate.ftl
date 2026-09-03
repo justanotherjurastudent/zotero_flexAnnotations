@@ -27,6 +27,11 @@ flexannotate-button-save =
 flexannotate-button-cancel =
     .label = Abbrechen
 
+# Im Zitationsdialog: HTML-<label>, daher reiner Textwert statt XUL-.value
+flexannotate-dialog-mode-label = Einfügen als
+flexannotate-dialog-mode-full = Vollnachweis (Zitat und Nachweis)
+flexannotate-dialog-mode-citation = Nur Nachweis
+
 flexannotate-prefs-citing-heading = Zitieren
 flexannotate-prefs-citation-only =
     .label = Standardmäßig nur den Nachweis einfügen
