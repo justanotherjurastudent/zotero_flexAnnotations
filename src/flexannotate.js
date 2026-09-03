@@ -17,6 +17,7 @@ FlexAnnotate = {
 		Services.scriptloader.loadSubScript(rootURI + 'placeholder.js');
 		Services.scriptloader.loadSubScript(rootURI + 'printAnnotations.js');
 		Services.scriptloader.loadSubScript(rootURI + 'integrationPatch.js');
+		Services.scriptloader.loadSubScript(rootURI + 'dialog.js');
 	},
 
 	uninit() {
@@ -107,7 +108,7 @@ FlexAnnotate = {
 	},
 
 	/**
-	 * Öffnet den Dialog und legt bei Bestätigung die Annotation an.
+	 * Öffnet die Eingabemaske für das ausgewählte Titel-Item.
 	 *
 	 * @param {Window} window
 	 * @returns {Promise<void>}
@@ -117,30 +118,7 @@ FlexAnnotate = {
 		if (items.length !== 1 || !items[0].isRegularItem()) {
 			return;
 		}
-		let item = items[0];
-
-		let io = {
-			item,
-			dataOut: null
-		};
-		window.openDialog(
-			this.rootURI + 'printAnnotationDialog.xhtml',
-			'flexannotate-print-annotation',
-			'chrome,modal,centerscreen,resizable=yes',
-			io
-		);
-
-		if (!io.dataOut) {
-			return;
-		}
-
-		try {
-			await this.PrintAnnotations.create(item, io.dataOut);
-		}
-		catch (e) {
-			this.logError(e);
-			Zotero.alert(window, 'FlexAnnotate', String(e));
-		}
+		await this.Dialog.open(window, items[0]);
 	},
 
 	addToAllWindows() {

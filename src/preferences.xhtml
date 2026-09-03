@@ -2,6 +2,14 @@
 	xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
 	xmlns:html="http://www.w3.org/1999/xhtml"
 >
+	<!-- Das Fragment wird in das Einstellungsfenster eingehängt, das anschließend
+	     document.l10n.translateFragment() darauf aufruft (preferences.js:355). Die FTL des
+	     Plugins hängt dort nicht automatisch am Dokument — ohne dieses linkset bleiben alle
+	     Beschriftungen leer. Zoteros eigene Panes machen es genauso. -->
+	<linkset>
+		<html:link rel="localization" href="flexannotate.ftl"/>
+	</linkset>
+
 	<groupbox>
 		<html:h2 data-l10n-id="flexannotate-prefs-citing-heading"/>
 

@@ -22,6 +22,11 @@ flexannotate-type-underline =
 flexannotate-type-note =
     .label = Notiz
 
+flexannotate-button-save =
+    .label = Speichern
+flexannotate-button-cancel =
+    .label = Abbrechen
+
 flexannotate-prefs-citing-heading = Zitieren
 flexannotate-prefs-citation-only =
     .label = Standardmäßig nur den Nachweis einfügen
