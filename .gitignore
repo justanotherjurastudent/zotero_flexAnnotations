@@ -1,0 +1,10 @@
+build/
+node_modules/
+*.xpi
+
+# Entpackter Zotero-Quellcode als Nachschlagewerk (aus omni.ja, nicht versionieren)
+.zotero-reference/
+
+# Im Projektordner abgelegte Installer o. Ä.
+*.exe
+

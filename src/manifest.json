@@ -1,0 +1,14 @@
+{
+	"manifest_version": 2,
+	"name": "FlexAnnotate",
+	"version": "0.1.0",
+	"description": "Annotationen für Quellen ohne Dateianhang (Printbücher) und Nur-Nachweis-Zitieren in Word/LibreOffice.",
+	"homepage_url": "https://github.com/justanotherjurastudent/zotero_flexAnnotations",
+	"applications": {
+		"zotero": {
+			"id": "flexannotate@justanotherjurastudent.github.io",
+			"update_url": "https://raw.githubusercontent.com/justanotherjurastudent/zotero_flexAnnotations/main/updates.json",
+			"strict_min_version": "7.0"
+		}
+	}
+}

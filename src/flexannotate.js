@@ -1,0 +1,180 @@
+FlexAnnotate = {
+	id: null,
+	version: null,
+	rootURI: null,
+	initialized: false,
+	addedElementIDs: [],
+
+	PREF_BRANCH: 'extensions.flexannotate.',
+
+	init({ id, version, rootURI }) {
+		if (this.initialized) return;
+		this.id = id;
+		this.version = version;
+		this.rootURI = rootURI;
+		this.initialized = true;
+
+		Services.scriptloader.loadSubScript(rootURI + 'placeholder.js');
+		Services.scriptloader.loadSubScript(rootURI + 'printAnnotations.js');
+		Services.scriptloader.loadSubScript(rootURI + 'integrationPatch.js');
+	},
+
+	uninit() {
+		try {
+			this.IntegrationPatch.unpatch();
+		}
+		catch (e) {
+			this.logError(e);
+		}
+	},
+
+	log(msg) {
+		Zotero.debug("FlexAnnotate: " + msg);
+	},
+
+	logError(e) {
+		Zotero.logError(e);
+		Zotero.debug("FlexAnnotate: " + e);
+	},
+
+	/**
+	 * @param {String} key - Pref-Name ohne Branch
+	 * @returns {*}
+	 */
+	getPref(key) {
+		return Zotero.Prefs.get(this.PREF_BRANCH + key, true);
+	},
+
+	setPref(key, value) {
+		return Zotero.Prefs.set(this.PREF_BRANCH + key, value, true);
+	},
+
+	async main() {
+		this.IntegrationPatch.patch();
+	},
+
+	//
+	// Fensterintegration
+	//
+
+	addToWindow(window) {
+		let doc = window.document;
+
+		window.MozXULElement.insertFTLIfNeeded("flexannotate.ftl");
+
+		let itemMenu = doc.getElementById('zotero-itemmenu');
+		if (!itemMenu) {
+			this.log("Item context menu not found; skipping menu integration");
+			return;
+		}
+
+		let separator = doc.createXULElement('menuseparator');
+		separator.id = 'flexannotate-itemmenu-separator';
+		itemMenu.appendChild(separator);
+		this.storeAddedElement(separator);
+
+		let addItem = doc.createXULElement('menuitem');
+		addItem.id = 'flexannotate-add-print-annotation';
+		addItem.classList.add('menuitem-iconic');
+		addItem.setAttribute('data-l10n-id', 'flexannotate-add-print-annotation');
+		addItem.addEventListener('command', () => {
+			this.openPrintAnnotationDialog(window).catch(e => this.logError(e));
+		});
+		itemMenu.appendChild(addItem);
+		this.storeAddedElement(addItem);
+
+		// buildItemContextMenu() räumt nur seine eigenen Einträge auf (zoteroPane.js:4170),
+		// angehängte Plugin-Einträge bleiben bestehen. Sichtbarkeit steuern wir selbst.
+		let onPopupShowing = () => this.updateMenuState(window);
+		itemMenu.addEventListener('popupshowing', onPopupShowing);
+		this._menuListeners = this._menuListeners || new WeakMap();
+		this._menuListeners.set(window, onPopupShowing);
+	},
+
+	updateMenuState(window) {
+		let doc = window.document;
+		let items = window.ZoteroPane?.getSelectedItems() || [];
+		let applicable = items.length === 1 && items[0].isRegularItem();
+
+		for (let id of ['flexannotate-itemmenu-separator', 'flexannotate-add-print-annotation']) {
+			let element = doc.getElementById(id);
+			if (element) {
+				element.hidden = !applicable;
+			}
+		}
+	},
+
+	/**
+	 * Öffnet den Dialog und legt bei Bestätigung die Annotation an.
+	 *
+	 * @param {Window} window
+	 * @returns {Promise<void>}
+	 */
+	async openPrintAnnotationDialog(window) {
+		let items = window.ZoteroPane?.getSelectedItems() || [];
+		if (items.length !== 1 || !items[0].isRegularItem()) {
+			return;
+		}
+		let item = items[0];
+
+		let io = {
+			item,
+			dataOut: null
+		};
+		window.openDialog(
+			this.rootURI + 'printAnnotationDialog.xhtml',
+			'flexannotate-print-annotation',
+			'chrome,modal,centerscreen,resizable=yes',
+			io
+		);
+
+		if (!io.dataOut) {
+			return;
+		}
+
+		try {
+			await this.PrintAnnotations.create(item, io.dataOut);
+		}
+		catch (e) {
+			this.logError(e);
+			Zotero.alert(window, 'FlexAnnotate', String(e));
+		}
+	},
+
+	addToAllWindows() {
+		for (let win of Zotero.getMainWindows()) {
+			if (!win.ZoteroPane) continue;
+			this.addToWindow(win);
+		}
+	},
+
+	storeAddedElement(elem) {
+		if (!elem.id) {
+			throw new Error("Element must have an id");
+		}
+		this.addedElementIDs.push(elem.id);
+	},
+
+	removeFromWindow(window) {
+		let doc = window.document;
+
+		let itemMenu = doc.getElementById('zotero-itemmenu');
+		let listener = this._menuListeners?.get(window);
+		if (itemMenu && listener) {
+			itemMenu.removeEventListener('popupshowing', listener);
+			this._menuListeners.delete(window);
+		}
+
+		for (let id of this.addedElementIDs) {
+			doc.getElementById(id)?.remove();
+		}
+		doc.querySelector('[href="flexannotate.ftl"]')?.remove();
+	},
+
+	removeFromAllWindows() {
+		for (let win of Zotero.getMainWindows()) {
+			if (!win.ZoteroPane) continue;
+			this.removeFromWindow(win);
+		}
+	}
+};
