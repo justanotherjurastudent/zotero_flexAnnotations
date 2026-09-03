@@ -153,7 +153,9 @@ FlexAnnotate.IntegrationPatch = {
 			});
 			if (pageLabel) {
 				entry.locator = pageLabel;
-				entry.label = 'page';
+				// Bei Print-Quellen ist die Fundstelle oft keine Seite (Randnummer,
+				// Paragraf, Fußnote …); der Typ hängt an der Annotation.
+				entry.label = FlexAnnotate.PrintAnnotations.getLocator(annotations[i]);
 			}
 			rewrittenItems.push(entry);
 		}

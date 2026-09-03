@@ -22,6 +22,7 @@ FlexAnnotate = {
 			'printAnnotations.js',
 			'integrationPatch.js',
 			'dialog.js',
+			'annotationMenu.js',
 			'citationDialogPatch.js'
 		]) {
 			// Ohne target lädt das Skript in den aktuellen Plugin-Scope
@@ -105,7 +106,9 @@ FlexAnnotate = {
 		this._menuListeners = this._menuListeners || new WeakMap();
 		this._menuListeners.set(window, onPopupShowing);
 
-		this.log("Added item menu entry to window");
+		this.AnnotationMenu.addToWindow(window);
+
+		this.log("Added item menu entry and annotation context menu to window");
 	},
 
 	updateMenuState(window) {
@@ -151,6 +154,13 @@ FlexAnnotate = {
 
 	removeFromWindow(window) {
 		let doc = window.document;
+
+		try {
+			this.AnnotationMenu.removeFromWindow(window);
+		}
+		catch (e) {
+			this.logError(e);
+		}
 
 		let itemMenu = doc.getElementById('zotero-itemmenu');
 		let listener = this._menuListeners?.get(window);

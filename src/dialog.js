@@ -1,5 +1,5 @@
 /**
- * Eingabemaske für Print-Annotationen.
+ * Eingabemaske für Print-Annotationen — zum Anlegen und zum Nachbearbeiten.
  *
  * Warum kein eigenes Dialogfenster: XUL-Elemente werden nur in privilegierten
  * chrome-Dokumenten geparst. Ein Plugin kann in Zotero 10 keine chrome://-URI
@@ -15,57 +15,122 @@
 FlexAnnotate.Dialog = {
 	PANEL_ID: 'flexannotate-print-annotation-panel',
 
+	/** 'create' oder 'edit' */
+	_mode: 'create',
+	_item: null,
+	_annotation: null,
+
 	/**
-	 * Öffnet die Maske und legt bei Bestätigung die Annotation an.
+	 * Öffnet die Maske zum Anlegen einer neuen Print-Annotation.
 	 *
 	 * @param {Window} window - Zotero-Hauptfenster
 	 * @param {Zotero.Item} item - Reguläres Titel-Item
 	 * @returns {Promise<void>}
 	 */
 	async open(window, item) {
+		this._mode = 'create';
+		this._item = item;
+		this._annotation = null;
+
 		let doc = window.document;
-		let panel = this.build(window, item);
+		let panel = this.build(window);
 
-		doc.getElementById('flexannotate-dialog-source').textContent = item.getDisplayTitle();
-		doc.getElementById('flexannotate-dialog-page').value = '';
-		doc.getElementById('flexannotate-dialog-text').value = '';
-		doc.getElementById('flexannotate-dialog-comment').value = '';
-		doc.getElementById('flexannotate-dialog-type').value = 'highlight';
-		doc.getElementById('flexannotate-dialog-color').value = Zotero.Annotations.DEFAULT_COLOR;
+		this.fill(doc, {
+			source: item.getDisplayTitle(),
+			locator: 'page',
+			pageLabel: '',
+			type: 'highlight',
+			color: Zotero.Annotations.DEFAULT_COLOR,
+			text: '',
+			comment: ''
+		});
+		// Der Typ bestimmt, ob Zotero ein Zitatfeld erlaubt — nachträglich nicht mehr änderbar
+		doc.getElementById('flexannotate-dialog-type').disabled = false;
+
+		this.show(window, panel);
+	},
+
+	/**
+	 * Öffnet die Maske für eine bestehende Print-Annotation.
+	 *
+	 * @param {Window} window - Zotero-Hauptfenster
+	 * @param {Zotero.Item} annotation
+	 * @returns {Promise<void>}
+	 */
+	async openForEdit(window, annotation) {
+		this._mode = 'edit';
+		this._annotation = annotation;
+		this._item = annotation.topLevelItem;
+
+		let doc = window.document;
+		let panel = this.build(window);
+
+		this.fill(doc, {
+			source: this._item ? this._item.getDisplayTitle() : '',
+			locator: FlexAnnotate.PrintAnnotations.getLocator(annotation),
+			pageLabel: annotation.annotationPageLabel || '',
+			type: annotation.annotationType,
+			color: annotation.annotationColor || Zotero.Annotations.DEFAULT_COLOR,
+			text: annotation.annotationText || '',
+			comment: annotation.annotationComment || ''
+		});
+
+		// Zotero erlaubt nur den Wechsel zwischen highlight und underline
+		// (item.js:4494-4498), deshalb bleibt der Typ beim Bearbeiten fest.
+		doc.getElementById('flexannotate-dialog-type').disabled = true;
+
+		this.show(window, panel);
+	},
+
+	/**
+	 * @param {Document} doc
+	 * @param {Object} values
+	 */
+	fill(doc, values) {
+		doc.getElementById('flexannotate-dialog-source').textContent = values.source;
+		doc.getElementById('flexannotate-dialog-locator').value = values.locator;
+		doc.getElementById('flexannotate-dialog-page').value = values.pageLabel;
+		doc.getElementById('flexannotate-dialog-type').value = values.type;
+		doc.getElementById('flexannotate-dialog-color').value = values.color;
+		doc.getElementById('flexannotate-dialog-text').value = values.text;
+		doc.getElementById('flexannotate-dialog-comment').value = values.comment;
 		this.updateTextFieldState(doc);
+	},
 
-		// Mittig über dem Hauptfenster
-		let x = window.screenX + Math.max(0, (window.outerWidth - 520) / 2);
-		let y = window.screenY + Math.max(0, (window.outerHeight - 460) / 3);
+	/**
+	 * @param {Window} window
+	 * @param {Element} panel
+	 */
+	show(window, panel) {
+		let x = window.screenX + Math.max(0, (window.outerWidth - 560) / 2);
+		let y = window.screenY + Math.max(0, (window.outerHeight - 500) / 3);
 		panel.openPopupAtScreen(x, y, false);
-
-		doc.getElementById('flexannotate-dialog-page').focus();
+		window.document.getElementById('flexannotate-dialog-page').focus();
 	},
 
 	/**
 	 * Legt das Panel einmalig an und liefert es bei weiteren Aufrufen wieder.
 	 *
 	 * @param {Window} window
-	 * @param {Zotero.Item} item
 	 * @returns {Element}
 	 */
-	build(window, item) {
+	build(window) {
 		let doc = window.document;
 		let existing = doc.getElementById(this.PANEL_ID);
 		if (existing) {
-			this._item = item;
 			return existing;
 		}
-		this._item = item;
 
 		let fragment = window.MozXULElement.parseXULToFragment(`
 			<panel id="${this.PANEL_ID}" type="arrow" noautohide="true" align="stretch">
-				<vbox style="padding: 12px; min-width: 460px; gap: 6px;">
+				<vbox style="padding: 12px; min-width: 500px; gap: 6px;">
 					<description id="flexannotate-dialog-source" style="font-weight: bold;"/>
 
 					<hbox align="center" style="gap: 8px;">
-						<label data-l10n-id="flexannotate-field-page" control="flexannotate-dialog-page"/>
-						<html:input id="flexannotate-dialog-page" type="text" style="width: 6em;"/>
+						<menulist id="flexannotate-dialog-locator" native="true">
+							<menupopup id="flexannotate-dialog-locator-popup"/>
+						</menulist>
+						<html:input id="flexannotate-dialog-page" type="text" style="width: 7em;"/>
 
 						<label data-l10n-id="flexannotate-field-type" control="flexannotate-dialog-type"/>
 						<menulist id="flexannotate-dialog-type" native="true">
@@ -100,15 +165,8 @@ FlexAnnotate.Dialog = {
 		let panel = doc.getElementById(this.PANEL_ID);
 		FlexAnnotate.storeAddedElement(panel);
 
-		// Farbauswahl aus Zoteros eigener Palette (Zotero.Annotations.COLORS)
-		let colorPopup = doc.getElementById('flexannotate-dialog-color-popup');
-		for (let [l10nKey, hex] of Zotero.Annotations.COLORS) {
-			let menuitem = doc.createXULElement('menuitem');
-			menuitem.setAttribute('value', hex);
-			menuitem.setAttribute('label', hex);
-			menuitem.setAttribute('data-l10n-id', l10nKey);
-			colorPopup.appendChild(menuitem);
-		}
+		this.buildLocatorMenu(doc);
+		this.buildColorMenu(doc);
 
 		doc.getElementById('flexannotate-dialog-type')
 			.addEventListener('command', () => this.updateTextFieldState(doc));
@@ -128,8 +186,53 @@ FlexAnnotate.Dialog = {
 	},
 
 	/**
+	 * Locator-Typen aus Zoteros eigener Liste (Zotero.Cite.labels), beschriftet über
+	 * getLocatorString() und alphabetisch sortiert — wie im Zitationsdialog
+	 * (integration/citationDialog/popupHandler.mjs:132-146).
+	 *
+	 * @param {Document} doc
+	 */
+	buildLocatorMenu(doc) {
+		let popup = doc.getElementById('flexannotate-dialog-locator-popup');
+		let locators = Zotero.Cite.labels.map(locator => ({
+			value: locator,
+			label: Zotero.Cite.getLocatorString(locator)
+		}));
+		locators.sort((a, b) => a.label.localeCompare(b.label));
+
+		for (let { value, label } of locators) {
+			let menuitem = doc.createXULElement('menuitem');
+			menuitem.setAttribute('value', value);
+			menuitem.setAttribute('label', label);
+			popup.appendChild(menuitem);
+		}
+	},
+
+	/**
+	 * Farbauswahl aus Zoteros Palette (Zotero.Annotations.COLORS).
+	 *
+	 * Die Namen kommen über Zotero.getString(), nicht über data-l10n-id: Die Einträge
+	 * der Palette sind reine Fluent-Wertnachrichten (general-yellow = Gelb), und Fluent
+	 * setzt die als textContent — ein XUL-<menuitem> zeigt aber das label-Attribut, das
+	 * dabei leer bliebe. Zotero macht es an gleicher Stelle genauso
+	 * (elements/zoteroSearch.js:1269).
+	 *
+	 * @param {Document} doc
+	 */
+	buildColorMenu(doc) {
+		let popup = doc.getElementById('flexannotate-dialog-color-popup');
+
+		for (let [nameKey, hex] of Zotero.Annotations.COLORS) {
+			let menuitem = doc.createXULElement('menuitem');
+			menuitem.setAttribute('value', hex);
+			menuitem.setAttribute('label', Zotero.getString(nameKey));
+			popup.appendChild(menuitem);
+		}
+	},
+
+	/**
 	 * Zotero erlaubt `annotationText` nur bei highlight/underline (item.js:4507),
-	 * daher wird das Zitatfeld bei "Notiz" gesperrt.
+	 * daher wird das Zitatfeld bei „Notiz" gesperrt.
 	 *
 	 * @param {Document} doc
 	 */
@@ -158,6 +261,7 @@ FlexAnnotate.Dialog = {
 
 		let data = {
 			pageLabel: page,
+			locator: doc.getElementById('flexannotate-dialog-locator').value,
 			type: doc.getElementById('flexannotate-dialog-type').value,
 			color: doc.getElementById('flexannotate-dialog-color').value,
 			text: doc.getElementById('flexannotate-dialog-text').value.trim(),
@@ -167,7 +271,12 @@ FlexAnnotate.Dialog = {
 		panel.hidePopup();
 
 		try {
-			await FlexAnnotate.PrintAnnotations.create(this._item, data);
+			if (this._mode === 'edit') {
+				await FlexAnnotate.PrintAnnotations.update(this._annotation, data);
+			}
+			else {
+				await FlexAnnotate.PrintAnnotations.create(this._item, data);
+			}
 		}
 		catch (e) {
 			FlexAnnotate.logError(e);

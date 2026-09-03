@@ -22,6 +22,11 @@ flexannotate-type-underline =
 flexannotate-type-note =
     .label = Notiz
 
+flexannotate-annotation-edit =
+    .label = Print-Annotation bearbeiten…
+flexannotate-annotation-delete =
+    .label = Print-Annotation löschen
+
 flexannotate-button-save =
     .label = Speichern
 flexannotate-button-cancel =

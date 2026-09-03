@@ -8,8 +8,20 @@
  *  - `annotationSortIndex` muss bei PDF-Parent /^\d{5}\|\d{6}\|\d{5}$/ erfüllen
  */
 FlexAnnotate.PrintAnnotations = {
-	/** Von Zotero unterstützte Farben, siehe annotations.js (Zotero.Annotations.PREDEFINED_COLORS) */
+	/** Von Zotero unterstützte Farben, siehe annotations.js (Zotero.Annotations.COLORS) */
 	DEFAULT_COLOR: '#ffd400',
+
+	/**
+	 * Zoteros Annotationen kennen nur `annotationPageLabel`, kein Feld für die Art der
+	 * Fundstelle. Bei Print-Quellen ist das aber oft keine Seite (Randnummer, Paragraf,
+	 * Fußnote …). Der Locator-Typ wird deshalb als automatischer Tag an der Annotation
+	 * geführt: Tags sind Bordmittel, werden mitsynchronisiert und überstehen den
+	 * Roundtrip über andere Geräte.
+	 *
+	 * 'page' ist der Standard und wird nicht getaggt, damit Bibliotheken sauber bleiben.
+	 */
+	LOCATOR_TAG_PREFIX: '#flexannotate-locator-',
+	DEFAULT_LOCATOR: 'page',
 
 	/**
 	 * Legt eine Print-Annotation unter dem Platzhalter-Attachment eines Titels an.
@@ -53,6 +65,8 @@ FlexAnnotate.PrintAnnotations = {
 			rects: [[0, 0, 0, 0]]
 		});
 
+		this.applyLocatorTag(annotation, data.locator);
+
 		await annotation.saveTx();
 		FlexAnnotate.log(`Created print annotation ${annotation.key} on page "${annotation.annotationPageLabel}"`);
 		return annotation;
@@ -84,9 +98,48 @@ FlexAnnotate.PrintAnnotations = {
 			annotation.annotationPageLabel = String(data.pageLabel).trim();
 			annotation.annotationSortIndex = this.buildSortIndex(data.pageLabel);
 		}
+		if (data.locator !== undefined) {
+			this.applyLocatorTag(annotation, data.locator);
+		}
 
 		await annotation.saveTx();
+		FlexAnnotate.log(`Updated print annotation ${annotation.key}`);
 		return annotation;
+	},
+
+	/**
+	 * Liefert den Locator-Typ einer Annotation.
+	 *
+	 * @param {Zotero.Item} annotation
+	 * @returns {String} z. B. 'page', 'paragraph', 'section'
+	 */
+	getLocator(annotation) {
+		for (let tag of annotation.getTags()) {
+			if (tag.tag.startsWith(this.LOCATOR_TAG_PREFIX)) {
+				let locator = tag.tag.slice(this.LOCATOR_TAG_PREFIX.length);
+				if (Zotero.Cite.labels.includes(locator)) {
+					return locator;
+				}
+			}
+		}
+		return this.DEFAULT_LOCATOR;
+	},
+
+	/**
+	 * Setzt den Locator-Tag; speichert nicht selbst.
+	 *
+	 * @param {Zotero.Item} annotation
+	 * @param {String} [locator]
+	 */
+	applyLocatorTag(annotation, locator) {
+		for (let tag of annotation.getTags()) {
+			if (tag.tag.startsWith(this.LOCATOR_TAG_PREFIX)) {
+				annotation.removeTag(tag.tag);
+			}
+		}
+		if (locator && locator !== this.DEFAULT_LOCATOR && Zotero.Cite.labels.includes(locator)) {
+			annotation.addTag(this.LOCATOR_TAG_PREFIX + locator, 1);
+		}
 	},
 
 	/**
