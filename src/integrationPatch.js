@@ -57,7 +57,7 @@ FlexAnnotate.IntegrationPatch = {
 		this._original = proto._insertCitingResult;
 		let self = this;
 
-		proto._insertCitingResult = async function (fieldIndex, field, citation) {
+		let patched = async function (fieldIndex, field, citation) {
 			try {
 				if (self.isCitationOnlyMode()) {
 					let rewritten = await self.rewriteToCitationOnly(citation);
@@ -76,6 +76,19 @@ FlexAnnotate.IntegrationPatch = {
 
 			return self._original.call(this, fieldIndex, field, citation);
 		};
+
+		proto._insertCitingResult = patched;
+
+		// Gegenprobe: Zuweisungen an fremde Objekte können lautlos verpuffen, wenn das
+		// Ziel eingefroren ist oder nur über einen Xray-Wrapper sichtbar wird — unser
+		// Code läuft nicht im strict mode, es gäbe dann keinen Fehler. Genau das ist
+		// beim Citavi-Modul passiert (siehe NOTES-citavi-import.md).
+		if (proto._insertCitingResult !== patched) {
+			Zotero.warn("FlexAnnotate: patch of _insertCitingResult did not take effect — "
+				+ "Feature B (Nur-Nachweis-Zitieren) bleibt wirkungslos.");
+			this._original = null;
+			return false;
+		}
 
 		this._patched = true;
 		FlexAnnotate.log("Patched _insertCitingResult for citation-only mode");

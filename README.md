@@ -89,6 +89,14 @@ angewendet, wenn diese Funktion vorhanden ist; andernfalls deaktiviert sich Feat
 still und schreibt eine Warnung ins Debug-Log — Feature A und Zotero selbst bleiben
 davon unberührt.
 
+## Citavi-Import
+
+Citavi-Zitate an Quellen ohne Dateianhang sollen beim Import als Print-Annotationen
+ankommen — Zoteros Importer verwirft sie. Der Code dafür steht und ist gegen einen
+echten Export geprüft, **greift aber noch nicht**: Der Einhängepunkt liegt auf einem
+eingefrorenen CommonJS-Modul, das sich nicht patchen lässt. Stand, Belege und der
+nächste Schritt stehen in `NOTES-citavi-import.md`.
+
 ## Noch offen
 
 - Bearbeiten bestehender Print-Annotationen über die Oberfläche (die API dafür steht:

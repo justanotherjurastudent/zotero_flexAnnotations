@@ -76,21 +76,94 @@ FlexAnnotate.CitaviImport = {
 		let original = module[this.EXPORT_NAME];
 		let self = this;
 
-		module[this.EXPORT_NAME] = async function (translation) {
-			// Zoteros eigener Durchlauf zuerst, damit PDF-Zitate unverändert ankommen
-			await original.apply(this, arguments);
+		let wrapper = async function (translation) {
+			FlexAnnotate.log("Citavi import hook invoked");
+
+			// Zoteros eigener Durchlauf zuerst, damit PDF-Zitate unverändert ankommen.
+			// Ein Fehler darin darf unseren Durchlauf nicht verhindern: die Print-Zitate
+			// haben mit dem PDF-Pfad nichts zu tun.
+			let failure = null;
+			try {
+				await original.apply(this, arguments);
+			}
+			catch (e) {
+				failure = e;
+				FlexAnnotate.logError(e);
+			}
+
 			try {
 				await self.importPrintQuotes(translation);
 			}
 			catch (e) {
-				// Ein Fehler hier darf den Import nicht nachträglich scheitern lassen
 				FlexAnnotate.logError(e);
+			}
+
+			if (failure) {
+				throw failure;
 			}
 		};
 
+		let target = this.findWritableTarget(module, wrapper);
+		if (!target) {
+			Zotero.warn("FlexAnnotate: Citavi import hook did not take effect — "
+				+ "Zitate ohne Anhang bleiben aus.");
+			return;
+		}
+
 		this._hooks = this._hooks || new WeakMap();
-		this._hooks.set(window, { module, original });
+		this._hooks.set(window, { module: target, original });
 		FlexAnnotate.log("Hooked Citavi import");
+	},
+
+	/**
+	 * Setzt den Wrapper und prüft, ob die Zuweisung wirklich angekommen ist.
+	 *
+	 * Aus unserer Sandbox heraus sehen wir Objekte anderer Compartments durch
+	 * Xray-Wrapper. Eine Zuweisung darauf kann in einem nur für uns sichtbaren Expando
+	 * landen, während fileInterface.js weiter die ursprüngliche Funktion sieht — der
+	 * Patch ginge unbemerkt ins Leere. Deshalb werden die möglichen Zugänge zum echten
+	 * Objekt der Reihe nach probiert und jeweils zurückgelesen.
+	 *
+	 * @param {Object} module
+	 * @param {Function} wrapper
+	 * @returns {Object|null} Das Objekt, auf dem die Zuweisung hält
+	 */
+	findWritableTarget(module, wrapper) {
+		let candidates = [
+			['direkt', module],
+			['wrappedJSObject', module.wrappedJSObject]
+		];
+
+		try {
+			// Cu.waiveXrays legt den Xray-Wrapper ab; in manchen Umgebungen ist
+			// Components im Plugin-Scope nicht vorhanden, daher abgesichert.
+			if (typeof Components !== 'undefined' && Components.utils?.waiveXrays) {
+				candidates.push(['waiveXrays', Components.utils.waiveXrays(module)]);
+			}
+		}
+		catch (e) {
+			FlexAnnotate.logError(e);
+		}
+
+		for (let [label, candidate] of candidates) {
+			if (!candidate) {
+				continue;
+			}
+			try {
+				candidate[this.EXPORT_NAME] = wrapper;
+				if (candidate[this.EXPORT_NAME] === wrapper) {
+					FlexAnnotate.log(`Citavi hook installed via ${label}`);
+					return candidate;
+				}
+			}
+			catch (e) {
+				FlexAnnotate.log(`Citavi hook via ${label} failed: ${e}`);
+			}
+		}
+
+		FlexAnnotate.log("Citavi hook: no writable access to the module export "
+			+ `(candidates tried: ${candidates.map(c => c[0]).join(', ')})`);
+		return null;
 	},
 
 	/**
