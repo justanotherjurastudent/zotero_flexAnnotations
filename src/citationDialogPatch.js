@@ -119,9 +119,92 @@ FlexAnnotate.CitationDialogPatch = {
 			return;
 		}
 
+		this.injectStyles(doc);
 		this.localize(doc, rows);
 		this.trackDialogType(doc, rows);
 		FlexAnnotate.log(`Added citation mode selector to citation dialog (${rows.length} location(s))`);
+	},
+
+	/**
+	 * Stil der Auswahl, angelehnt an Zoteros eigene Bedienelemente im selben Dialog
+	 * (.details-data: border-radius 5px, weicher Rand). Farben kommen aus Zoteros
+	 * Design-Tokens, damit der helle und der dunkle Modus ohne Zutun stimmen.
+	 *
+	 * Das <select> muss dafür auf appearance:none: unter Windows zeichnet das native
+	 * Widget sonst eckige Kanten und ignoriert border-radius. Den Pfeil stellen wir
+	 * deshalb selbst, als Maske eingefärbt mit --fill-secondary — so passt er
+	 * automatisch zum Farbschema.
+	 *
+	 * @param {Document} doc
+	 */
+	injectStyles(doc) {
+		if (doc.getElementById('flexannotate-citation-dialog-style')) {
+			return;
+		}
+
+		let chevron = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' "
+			+ "viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='black' "
+			+ "stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>\")";
+
+		let style = doc.createElement('style');
+		style.id = 'flexannotate-citation-dialog-style';
+		style.textContent = `
+			.${this.ROW_CLASS} {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-block: 8px;
+			}
+
+			.${this.ROW_CLASS} > label {
+				flex: 0 0 auto;
+				margin: 0;
+			}
+
+			.${this.SELECT_CLASS} {
+				flex: 0 0 auto;
+				width: auto;
+				appearance: none;
+				font: inherit;
+				color: var(--fill-primary);
+				background-color: var(--material-button);
+				border: var(--material-border);
+				border-radius: 5px;
+				padding: 4px 26px 4px 8px;
+			}
+
+			/* Traegt den Pfeil, damit er am Feld sitzt und nicht am Zeilenende */
+			.${this.ROW_CLASS} .flexannotate-select-wrap {
+				position: relative;
+				display: inline-flex;
+				align-items: center;
+				flex: 0 0 auto;
+			}
+
+			/* Eigener Pfeil, weil appearance:none den nativen entfernt */
+			.${this.ROW_CLASS} .flexannotate-chevron {
+				position: absolute;
+				inset-inline-end: 9px;
+				width: 10px;
+				height: 6px;
+				pointer-events: none;
+				background-color: var(--fill-secondary);
+				mask-image: ${chevron};
+				mask-repeat: no-repeat;
+				mask-size: contain;
+			}
+
+			.${this.SELECT_CLASS}:hover {
+				background-color: var(--fill-quinary);
+			}
+
+			.${this.SELECT_CLASS}:focus-visible {
+				outline: var(--color-focus-outer-border) solid var(--width-focus-outer-border);
+				outline-offset: var(--width-focus-border);
+				box-shadow: 0 0 0 var(--width-focus-border) var(--color-focus-border);
+			}
+		`;
+		doc.head.appendChild(style);
 	},
 
 	/**
@@ -136,8 +219,6 @@ FlexAnnotate.CitationDialogPatch = {
 		row.className = `hbox ${this.ROW_CLASS}`;
 		// Zotero blendet Zeilen anhand dieses Attributs je nach Dialogmodus ein und aus
 		row.setAttribute('data-dialog-type', 'annotations');
-		row.style.alignItems = 'center';
-		row.style.gap = '6px';
 
 		let label = doc.createElement('label');
 		label.setAttribute('for', selectID);
@@ -146,8 +227,6 @@ FlexAnnotate.CitationDialogPatch = {
 		let select = doc.createElement('select');
 		select.id = selectID;
 		select.className = this.SELECT_CLASS;
-		// fx128: size="0" erzwingt den nativen Stil, wie bei Zoteros eigenem #label
-		select.setAttribute('size', '0');
 
 		for (let [value, l10nID] of [
 			['full', 'flexannotate-dialog-mode-full'],
@@ -166,7 +245,15 @@ FlexAnnotate.CitationDialogPatch = {
 			FlexAnnotate.log(`Citation mode set to '${select.value}'`);
 		});
 
-		row.append(label, select);
+		// Pfeil als eigenes Element, da appearance:none den nativen entfernt
+		let chevron = doc.createElement('span');
+		chevron.className = 'flexannotate-chevron';
+
+		let wrap = doc.createElement('span');
+		wrap.className = 'flexannotate-select-wrap';
+		wrap.append(select, chevron);
+
+		row.append(label, wrap);
 		return row;
 	},
 
