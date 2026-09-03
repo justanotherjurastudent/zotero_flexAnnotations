@@ -2,9 +2,10 @@
 
 Zotero-Plugin für zwei Lücken im Arbeitsablauf mit gedruckten Quellen.
 
-> **Status: früher Entwicklungsstand (0.1.0).** Der Code ist vollständig gegen den
-> Quellcode von Zotero 10.0.1 geschrieben, aber noch nicht im laufenden Zotero getestet.
-> Die Test-Matrix aus dem Entwicklungsplan ist noch nicht durchlaufen.
+> **Status: früher Entwicklungsstand (0.1.0).** Das Plugin lädt und startet in
+> Zotero 10.0.1 fehlerfrei: Einstellungs-Panel und Kontextmenü-Eintrag werden angelegt,
+> der Zitations-Hook für Feature B greift. Die eigentlichen Funktionen sind noch nicht
+> durch die Oberfläche getestet, die Test-Matrix aus dem Entwicklungsplan ist offen.
 
 ## Features
 
@@ -77,7 +78,12 @@ Zotero mit Debug-Ausgabe starten:
 
 ## Kompatibilität
 
-Entwickelt gegen **Zotero 10.0.1**. Feature B patcht eine interne Zotero-Funktion
+Entwickelt gegen **Zotero 10.0.1**. Das Manifest muss dafür zwingend ein
+`strict_max_version` setzen — fehlt das Feld, verwirft Zotero 10 das Plugin beim Parsen
+und meldet nichts; es erscheint weder in der Plugin-Liste noch im Log. Bei einer neuen
+Zotero-Hauptversion ist dieser Wert entsprechend anzuheben.
+
+Feature B patcht eine interne Zotero-Funktion
 (`Zotero.Integration.Session.prototype._insertCitingResult`). Der Patch wird nur
 angewendet, wenn diese Funktion vorhanden ist; andernfalls deaktiviert sich Feature B
 still und schreibt eine Warnung ins Debug-Log — Feature A und Zotero selbst bleiben

@@ -89,6 +89,8 @@ FlexAnnotate = {
 		itemMenu.addEventListener('popupshowing', onPopupShowing);
 		this._menuListeners = this._menuListeners || new WeakMap();
 		this._menuListeners.set(window, onPopupShowing);
+
+		this.log("Added item menu entry to window");
 	},
 
 	updateMenuState(window) {

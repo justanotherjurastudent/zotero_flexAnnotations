@@ -11,12 +11,19 @@ function install() {
 async function startup({ id, version, rootURI }) {
 	log("Starting " + version);
 
-	Zotero.PreferencePanes.register({
-		pluginID: 'flexannotate@justanotherjurastudent.github.io',
-		src: rootURI + 'preferences.xhtml',
-		scripts: [rootURI + 'preferences.js'],
-		label: 'FlexAnnotate'
-	});
+	// register() ist async; ein Fehler hier (z. B. beim Auflösen des Plugin-Icons)
+	// darf nicht den ganzen Start abbrechen und damit Feature A und B mitnehmen.
+	try {
+		await Zotero.PreferencePanes.register({
+			pluginID: 'flexannotate@justanotherjurastudent.github.io',
+			src: rootURI + 'preferences.xhtml',
+			scripts: [rootURI + 'preferences.js'],
+			label: 'FlexAnnotate'
+		});
+	}
+	catch (e) {
+		Zotero.logError(e);
+	}
 
 	Services.scriptloader.loadSubScript(rootURI + 'flexannotate.js');
 	FlexAnnotate.init({ id, version, rootURI });

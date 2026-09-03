@@ -62,8 +62,8 @@ FlexAnnotate.Placeholder = {
 		// Das PDF wird zur Laufzeit erzeugt statt als Asset mitgeliefert: importFromFile()
 		// braucht einen echten Dateipfad, und aus einem installierten XPI heraus ist
 		// rootURI eine jar:-URI ohne Pfad im Dateisystem.
-		let tmpDir = await Zotero.getTemporaryDirectory();
-		let tmpPath = PathUtils.join(tmpDir, this.FILENAME);
+		// getTempDirectory() ist synchron und liefert ein nsIFile (zotero.js)
+		let tmpPath = PathUtils.join(Zotero.getTempDirectory().path, this.FILENAME);
 		await IOUtils.write(tmpPath, this.buildPDF());
 
 		try {

@@ -54,6 +54,16 @@ if ($Remove) {
 # Ohne abschließenden Zeilenumbruch und als ASCII, damit Zotero den Pfad exakt liest
 [System.IO.File]::WriteAllText($proxyFile, $src, [System.Text.Encoding]::ASCII)
 
+# Ohne diesen Schritt scannt Zotero das extensions-Verzeichnis beim Start nicht neu und
+# das Plugin bleibt unsichtbar (siehe Zotero-Doku zur Entwicklungsinstallation).
+$prefsFile = Join-Path $ProfileDir 'prefs.js'
+if (Test-Path $prefsFile) {
+	$kept = Get-Content $prefsFile |
+		Where-Object { $_ -notmatch 'extensions\.lastAppVersion|extensions\.lastAppBuildId' }
+	[System.IO.File]::WriteAllLines($prefsFile, $kept)
+	Write-Host 'prefs.js: lastAppVersion/lastAppBuildId entfernt (erzwingt Rescan)'
+}
+
 Write-Host "Proxy-Datei angelegt: $proxyFile"
 Write-Host "  -> $src"
 Write-Host ''
