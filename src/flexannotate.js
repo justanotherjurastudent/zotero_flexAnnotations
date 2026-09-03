@@ -23,7 +23,8 @@ FlexAnnotate = {
 			'integrationPatch.js',
 			'dialog.js',
 			'annotationMenu.js',
-			'citationDialogPatch.js'
+			'citationDialogPatch.js',
+			'citaviImport.js'
 		]) {
 			// Ohne target lädt das Skript in den aktuellen Plugin-Scope
 			Services.scriptloader.loadSubScriptWithOptions(rootURI + file, {
@@ -136,6 +137,7 @@ FlexAnnotate = {
 		this._menuListeners.set(window, onPopupShowing);
 
 		this.AnnotationMenu.addToWindow(window);
+		this.CitaviImport.addToWindow(window);
 
 		this.log("Added item menu entry and annotation context menu to window");
 	},
@@ -212,11 +214,13 @@ FlexAnnotate = {
 	removeFromWindow(window) {
 		let doc = window.document;
 
-		try {
-			this.AnnotationMenu.removeFromWindow(window);
-		}
-		catch (e) {
-			this.logError(e);
+		for (let feature of [this.AnnotationMenu, this.CitaviImport]) {
+			try {
+				feature.removeFromWindow(window);
+			}
+			catch (e) {
+				this.logError(e);
+			}
 		}
 
 		let itemMenu = doc.getElementById('zotero-itemmenu');

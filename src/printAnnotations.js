@@ -33,6 +33,8 @@ FlexAnnotate.PrintAnnotations = {
 	 * @param {String} [data.comment] - Eigener Kommentar
 	 * @param {String} [data.color]
 	 * @param {String} [data.type] - 'highlight' | 'underline' | 'note'
+	 * @param {String} [data.locator] - CSL-Locator, z. B. 'page' oder 'paragraph'
+	 * @param {String[]} [data.tags] - Schlagwörter, die an die Annotation gehängt werden
 	 * @returns {Promise<Zotero.Item>}
 	 */
 	async create(item, data) {
@@ -66,6 +68,10 @@ FlexAnnotate.PrintAnnotations = {
 		});
 
 		this.applyLocatorTag(annotation, data.locator);
+
+		for (let tag of data.tags || []) {
+			annotation.addTag(tag);
+		}
 
 		await annotation.saveTx();
 		FlexAnnotate.log(`Created print annotation ${annotation.key} on page "${annotation.annotationPageLabel}"`);
