@@ -72,6 +72,7 @@ Diese Punkte sind am Quellcode verifiziert und begründen den Aufbau des Plugins
 | `buildItemContextMenu` entfernt nur eigene Einträge, angehängte Plugin-Einträge bleiben | `zoteroPane.js:4170-4173` |
 | Farbpalette als `[l10n-Key, Hex]`-Paare | `xpcom/annotations.js` (`Zotero.Annotations.COLORS`) |
 | **`strict_max_version` ist auf Zotero 10 Pflicht.** Fehlt es im Manifest, wird das Plugin beim Parsen verworfen — es taucht nicht einmal in `extensions.json` auf und es erscheint keine Fehlermeldung. Experimentell belegt: von fünf sonst identischen Test-Plugins lud nur das mit `strict_max_version`. | Empirisch, Zotero 10.0.1 |
+| **Eigene Skripte mit `loadSubScriptWithOptions(url, { ignoreCache: true })` laden.** `loadSubScript()` bedient sich sonst aus dem Startup-Cache und liefert beim Entwickeln stillschweigend die vorige Fassung — ohne Fehler, ohne Hinweis im Log. Zotero lädt nur `bootstrap.js` selbst mit `ignoreCache`; ab dort ist es unsere Sache. Alternativ Zotero mit `-purgecaches` starten. | `xpcom/plugins.js:205-210` |
 | Der Pref `extensions.strictCompatibility` (`zotero.js:6`, `false`) ist irreführend: `XPIInstall.sys.mjs:507` setzt `addon.strictCompatibility` bei jedem Release-Build (ohne `-beta`/`-dev`/`SOURCE` in der Version) selbst auf `true` | `modules/addons/XPIInstall.sys.mjs:507` (Toolkit-omni.ja) |
 
 ## Konventionen

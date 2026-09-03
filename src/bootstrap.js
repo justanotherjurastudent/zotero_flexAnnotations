@@ -25,7 +25,13 @@ async function startup({ id, version, rootURI }) {
 		Zotero.logError(e);
 	}
 
-	Services.scriptloader.loadSubScript(rootURI + 'flexannotate.js');
+	// ignoreCache wie bei Zoteros eigenem Laden von bootstrap.js (plugins.js:205-210).
+	// Ohne das liefert der Startup-Cache beim Entwickeln weiter die alte Fassung, solange
+	// Zotero nicht mit -purgecaches startet. bootstrap.js selbst laedt Zotero bereits so;
+	// ab hier muessen wir es fuer jede eigene Datei selbst tun.
+	Services.scriptloader.loadSubScriptWithOptions(rootURI + 'flexannotate.js', {
+		ignoreCache: true
+	});
 	FlexAnnotate.init({ id, version, rootURI });
 	FlexAnnotate.addToAllWindows();
 	await FlexAnnotate.main();

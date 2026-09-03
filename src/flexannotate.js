@@ -14,11 +14,21 @@ FlexAnnotate = {
 		this.rootURI = rootURI;
 		this.initialized = true;
 
-		Services.scriptloader.loadSubScript(rootURI + 'placeholder.js');
-		Services.scriptloader.loadSubScript(rootURI + 'printAnnotations.js');
-		Services.scriptloader.loadSubScript(rootURI + 'integrationPatch.js');
-		Services.scriptloader.loadSubScript(rootURI + 'dialog.js');
-		Services.scriptloader.loadSubScript(rootURI + 'citationDialogPatch.js');
+		// ignoreCache wie bei Zoteros eigenem Laden von bootstrap.js (plugins.js:205-210):
+		// ohne das liefert der Startup-Cache beim Entwickeln weiter die alte Fassung,
+		// solange Zotero nicht mit -purgecaches gestartet wird.
+		for (let file of [
+			'placeholder.js',
+			'printAnnotations.js',
+			'integrationPatch.js',
+			'dialog.js',
+			'citationDialogPatch.js'
+		]) {
+			// Ohne target lädt das Skript in den aktuellen Plugin-Scope
+			Services.scriptloader.loadSubScriptWithOptions(rootURI + file, {
+				ignoreCache: true
+			});
+		}
 	},
 
 	uninit() {

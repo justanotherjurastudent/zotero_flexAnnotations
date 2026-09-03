@@ -46,7 +46,7 @@ FlexAnnotate.CitationDialogPatch = {
 			}
 		};
 		Services.ww.registerNotification(this._observer);
-		FlexAnnotate.log("Watching for citation dialogs");
+		FlexAnnotate.log("Watching for citation dialogs (settings popup + item popup)");
 	},
 
 	unpatch() {
