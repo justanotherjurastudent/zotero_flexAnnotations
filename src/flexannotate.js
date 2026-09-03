@@ -99,6 +99,35 @@ FlexAnnotate = {
 		itemMenu.appendChild(addItem);
 		this.storeAddedElement(addItem);
 
+		// Im Item-Baum werden Print-Annotationen als eigene Zeilen unter dem Platzhalter
+		// angezeigt; dort greift Zoteros eigenes Kontextmenü, nicht das an den
+		// annotation-row-Elementen des rechten Bereichs. Also auch hier anbieten.
+		let editItem = doc.createXULElement('menuitem');
+		editItem.id = 'flexannotate-itemmenu-edit';
+		editItem.classList.add('menuitem-iconic');
+		editItem.setAttribute('data-l10n-id', 'flexannotate-annotation-edit');
+		editItem.addEventListener('command', () => {
+			let annotation = this.getSelectedPrintAnnotation(window);
+			if (annotation) {
+				this.Dialog.openForEdit(window, annotation).catch(e => this.logError(e));
+			}
+		});
+		itemMenu.appendChild(editItem);
+		this.storeAddedElement(editItem);
+
+		let deleteItem = doc.createXULElement('menuitem');
+		deleteItem.id = 'flexannotate-itemmenu-delete';
+		deleteItem.classList.add('menuitem-iconic');
+		deleteItem.setAttribute('data-l10n-id', 'flexannotate-annotation-delete');
+		deleteItem.addEventListener('command', () => {
+			let annotation = this.getSelectedPrintAnnotation(window);
+			if (annotation) {
+				this.PrintAnnotations.erase(annotation).catch(e => this.logError(e));
+			}
+		});
+		itemMenu.appendChild(deleteItem);
+		this.storeAddedElement(deleteItem);
+
 		// buildItemContextMenu() räumt nur seine eigenen Einträge auf (zoteroPane.js:4170),
 		// angehängte Plugin-Einträge bleiben bestehen. Sichtbarkeit steuern wir selbst.
 		let onPopupShowing = () => this.updateMenuState(window);
@@ -114,14 +143,42 @@ FlexAnnotate = {
 	updateMenuState(window) {
 		let doc = window.document;
 		let items = window.ZoteroPane?.getSelectedItems() || [];
-		let applicable = items.length === 1 && items[0].isRegularItem();
 
-		for (let id of ['flexannotate-itemmenu-separator', 'flexannotate-add-print-annotation']) {
+		let canAdd = items.length === 1 && items[0].isRegularItem();
+		let annotation = this.getSelectedPrintAnnotation(window);
+
+		let visibility = {
+			'flexannotate-itemmenu-separator': canAdd || !!annotation,
+			'flexannotate-add-print-annotation': canAdd,
+			'flexannotate-itemmenu-edit': !!annotation,
+			'flexannotate-itemmenu-delete': !!annotation
+		};
+
+		for (let [id, visible] of Object.entries(visibility)) {
 			let element = doc.getElementById(id);
 			if (element) {
-				element.hidden = !applicable;
+				element.hidden = !visible;
 			}
 		}
+	},
+
+	/**
+	 * Liefert die ausgewählte Print-Annotation, sofern genau eine ausgewählt ist und
+	 * sie unter einem unserer Platzhalter-Anhänge hängt.
+	 *
+	 * @param {Window} window
+	 * @returns {Zotero.Item|null}
+	 */
+	getSelectedPrintAnnotation(window) {
+		let items = window.ZoteroPane?.getSelectedItems() || [];
+		if (items.length !== 1) {
+			return null;
+		}
+		let item = items[0];
+		if (!item.isAnnotation() || !this.Placeholder.isPlaceholder(item.parentItem)) {
+			return null;
+		}
+		return item;
 	},
 
 	/**
