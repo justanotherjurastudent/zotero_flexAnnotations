@@ -125,6 +125,10 @@ FlexAnnotate.CitaviImport = {
 	async _afterTranslate(translation) {
 		try {
 			if (!this._isCitavi(translation)) {
+				// Ohne diese Zeile wäre nicht zu unterscheiden, ob der Patch nicht
+				// greift oder der Übersetzer nur nicht als Citavi erkannt wurde.
+				FlexAnnotate.log("Import finished, not Citavi: "
+					+ this._describeTranslator(translation));
 				return;
 			}
 			this._pending = translation;
@@ -146,9 +150,37 @@ FlexAnnotate.CitaviImport = {
 	 * @returns {Boolean}
 	 */
 	_isCitavi(translation) {
-		let translator = translation?.translator?.[0];
-		let label = typeof translator == 'string' ? null : translator?.label;
+		let label = this._getLabel(translation);
 		return !!label && this.TRANSLATOR_LABEL.test(label);
+	},
+
+	/**
+	 * @param {Object} translation
+	 * @returns {String|null}
+	 */
+	_getLabel(translation) {
+		let translator = translation?.translator?.[0];
+		if (!translator || typeof translator == 'string') {
+			return null;
+		}
+		return translator.label || null;
+	},
+
+	/**
+	 * Nur für die Logausgabe.
+	 *
+	 * @param {Object} translation
+	 * @returns {String}
+	 */
+	_describeTranslator(translation) {
+		let translator = translation?.translator?.[0];
+		if (!translator) {
+			return "(kein Übersetzer gesetzt)";
+		}
+		if (typeof translator == 'string') {
+			return `ID ${translator}`;
+		}
+		return translator.label || `ID ${translator.translatorID}`;
 	},
 
 	//
@@ -271,22 +303,29 @@ FlexAnnotate.CitaviImport = {
 		);
 
 		let created = 0;
+		let seen = 0;
+		// Warum ein Zitat übersprungen wurde — sonst ist „created 0" nicht deutbar
+		let skipped = { noReference: 0, noItem: 0, notRegular: 0, handledByZotero: 0, empty: 0 };
 		let attachmentCache = new Map();
 
 		for (let node of ZU.xpath(doc, '//KnowledgeItems/KnowledgeItem')) {
+			seen++;
 			let knowledgeItemID = ZU.xpathText(node, '@id');
 			let referenceID = ZU.xpathText(node, './ReferenceID');
 			if (!referenceID) {
+				skipped.noReference++;
 				continue;
 			}
 
 			let itemID = idMap[referenceID];
 			if (!itemID) {
+				skipped.noItem++;
 				continue;
 			}
 
 			let item = await Zotero.Items.getAsync(itemID);
 			if (!item || !item.isRegularItem()) {
+				skipped.notRegular++;
 				continue;
 			}
 
@@ -297,12 +336,14 @@ FlexAnnotate.CitaviImport = {
 					attachmentCache.set(item.id, this.hasAnnotatableAttachment(item));
 				}
 				if (attachmentCache.get(item.id)) {
+					skipped.handledByZotero++;
 					continue;
 				}
 			}
 
 			let data = this.buildAnnotationData(ZU, node);
 			if (!data.text && !data.comment) {
+				skipped.empty++;
 				continue;
 			}
 
@@ -310,7 +351,9 @@ FlexAnnotate.CitaviImport = {
 			created++;
 		}
 
-		FlexAnnotate.log(`Citavi import: created ${created} print annotation(s)`);
+		FlexAnnotate.log(`Citavi import: created ${created} print annotation(s) `
+			+ `from ${seen} KnowledgeItem(s); skipped `
+			+ Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' '));
 		return created;
 	},
 
