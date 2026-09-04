@@ -26,9 +26,11 @@
  *    Citavi-Export eingelesen wurde, und hält das Translation-Objekt fest. Daran hängt
  *    beides, was der Durchlauf braucht: `_itemSaver._IDMap` (Citavi-`ReferenceID` →
  *    Zotero-Item) und `_io` für das XML.
- * 2. `Zotero_File_Interface.importFile` / `importFromClipboard` im Fenster — bestimmt,
- *    *wann* der Durchlauf läuft: erst nachdem Zoteros eigener Annotations-Durchlauf
- *    (fileInterface.js:686) fertig ist.
+ * 2. `Zotero_File_Interface.importFile` / `importFromClipboard` — bestimmt, *wann* der
+ *    Durchlauf läuft: erst nachdem Zoteros eigener Annotations-Durchlauf
+ *    (fileInterface.js:686) fertig ist. Das Objekt ist kein Singleton, jedes Fenster
+ *    hat sein eigenes; der Importassistent ebenso. Deshalb wird jedes geöffnete
+ *    Fenster geprüft, nicht nur das Hauptfenster.
  *
  * Die Reihenfolge ist nicht kosmetisch. Wir hängen eine Platzhalter-PDF an die Quelle;
  * Zoteros Durchlauf greift mit `getAttachments()[0]` blind auf den ersten Anhang zu und
@@ -48,6 +50,8 @@ FlexAnnotate.CitaviImport = {
 	_pending: null,
 	/** true, sobald mindestens ein Fenster den Durchlauf richtig einreiht */
 	_sequenced: false,
+	/** nsIObserver auf domwindowopened */
+	_observer: null,
 
 	QUOTATION_TYPES: {
 		1: { color: '#2ea8e5' }, // direktes Zitat
@@ -104,10 +108,13 @@ FlexAnnotate.CitaviImport = {
 
 		this._translatePatch = { proto, original };
 		FlexAnnotate.log("Patched Translate.Import.translate for Citavi print quotes");
+		this._watchWindows();
 		return true;
 	},
 
 	unpatch() {
+		this._unwatchWindows();
+
 		let patch = this._translatePatch;
 		if (!patch) {
 			return;
@@ -130,6 +137,13 @@ FlexAnnotate.CitaviImport = {
 				FlexAnnotate.log("Import finished, not Citavi: "
 					+ this._describeTranslator(translation));
 				return;
+			}
+			if (this._pending) {
+				// Genau so ist der Durchlauf einmal verschwunden: der Importassistent
+				// hat sein eigenes Zotero_File_Interface, unser Wrapper saß nur am
+				// Hauptfenster — vorgemerkt, aber nie ausgelöst.
+				Zotero.warn("FlexAnnotate: a queued Citavi pass was never triggered — "
+					+ "der Aufrufweg dieses Imports ist nicht eingereiht.");
 			}
 			this._pending = translation;
 			if (this._sequenced) {
@@ -188,7 +202,52 @@ FlexAnnotate.CitaviImport = {
 	//
 
 	/**
-	 * @param {Window} window - Zotero-Hauptfenster
+	 * `Zotero_File_Interface` ist kein Singleton: Jedes Fenster, das
+	 * `fileInterface.js` lädt, bekommt sein eigenes Objekt. Der Importassistent tut
+	 * genau das (importWizard.xhtml lädt das Skript selbst) und ruft `importFile`
+	 * darauf auf — ein Patch am Hauptfenster erreicht ihn nicht.
+	 *
+	 * Deshalb wird jedes geöffnete Fenster geprüft, nicht nur das Hauptfenster.
+	 */
+	_watchWindows() {
+		if (this._observer) {
+			return;
+		}
+
+		let self = this;
+		this._observer = {
+			observe(subject, topic) {
+				if (topic !== 'domwindowopened') {
+					return;
+				}
+				subject.addEventListener('load', () => {
+					try {
+						self.addToWindow(subject);
+					}
+					catch (e) {
+						FlexAnnotate.logError(e);
+					}
+				}, { once: true });
+			}
+		};
+
+		Services.ww.registerNotification(this._observer);
+		FlexAnnotate.log("Watching for windows with their own Zotero_File_Interface");
+	},
+
+	_unwatchWindows() {
+		if (!this._observer) {
+			return;
+		}
+		Services.ww.unregisterNotification(this._observer);
+		this._observer = null;
+	},
+
+	/**
+	 * Reiht den Durchlauf hinter den Import dieses Fensters ein. Fenster ohne
+	 * `Zotero_File_Interface` — die große Mehrheit — werden still übergangen.
+	 *
+	 * @param {Window} window
 	 */
 	addToWindow(window) {
 		if (this._windowPatches?.has(window)) {
@@ -197,8 +256,6 @@ FlexAnnotate.CitaviImport = {
 
 		let fileInterface = window.Zotero_File_Interface;
 		if (!fileInterface) {
-			Zotero.warn("FlexAnnotate: Zotero_File_Interface not found — "
-				+ "Citavi-Durchlauf wird nicht eingereiht.");
 			return;
 		}
 
@@ -239,7 +296,8 @@ FlexAnnotate.CitaviImport = {
 		this._windowPatches = this._windowPatches || new WeakMap();
 		this._windowPatches.set(window, patches);
 		this._sequenced = true;
-		FlexAnnotate.log(`Sequenced Citavi pass after ${patches.map(p => p.name).join(', ')}`);
+		FlexAnnotate.log(`Sequenced Citavi pass after ${patches.map(p => p.name).join(', ')}`
+			+ ` in ${window.location?.href || 'window'}`);
 	},
 
 	/**
