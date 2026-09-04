@@ -100,7 +100,7 @@ UTF-8 mit BOM), 57 `KnowledgeItem`.
 | 15 der 57 Zitate haben keinen `EntityLink` — genau die verwirft Zotero |
 | `KnowledgeItem` verweist per `ReferenceID` **direkt** auf die Quelle; `EntityLinks` ist nur für die PDF-Verankerung nötig |
 | `PageRange` enthält eingebettetes Markup: `<os>` Anzeigeform, `<nt>` Nummerierungsart, `<n>` Zahl |
-| Einziger vorkommender `<nt>`-Wert ist `Margin` (Randnummer); ohne `<nt>` meint Citavi eine Seite |
+| Die `<nt>`-Werte sind `Margin`, `Paragraph`, `Column` und `Other`; ohne `<nt>` meint Citavi eine Seite |
 | `PageRangeNumber` ist `-1`, wenn keine Fundstelle erfasst ist |
 | Bei 11 der 15 losen Zitate ist `Text` leer und nur `CoreStatement` gefüllt |
 | Die Notiz des Übersetzers folgt streng dem Schema `<h1>CoreStatement</h1>\n<p>Text</p>\n<i>Fundstelle</i>` (`Citavi 5 XML.js:183-206`) |
@@ -114,11 +114,10 @@ wird; die Auswahl kommt aus `Zotero.Cite.labels`, derselben Liste wie im
 Zitationsdialog. Für Randnummern gibt es in CSL keine Entsprechung: `paragraph` rendert
 „Abs.", je nach Zitierstil passt eher `opus` oder `column`.
 
-Belegt ist von den `<nt>`-Namen nur `Margin` — mehr kam im Testexport nicht vor, und
-Zoteros Übersetzer wertet `<nt>` gar nicht aus. `Column`, `Paragraph` und `Other`
-folgen Citavis Oberfläche und sind geraten. Trifft die Vermutung nicht zu, fällt der
-Wert auf „Andere" und der unbekannte Name steht im Log — er bleibt also nicht
-unbemerkt.
+Die `<nt>`-Namen sind an einem Export mit allen Typen bestätigt: `Margin`, `Paragraph`,
+`Column`, `Other` — die Seite trägt gar kein `<nt>`. Ein Wert außerhalb dieser vier
+fällt auf „Andere" und steht einmal je Name im Log; falls Citavi die Liste einmal
+erweitert, bleibt das also nicht unbemerkt.
 
 ## Der gescheiterte erste Einhängepunkt
 

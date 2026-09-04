@@ -66,10 +66,8 @@ FlexAnnotate.CitaviImport = {
 	 * Citavis Seitentyp (`<nt>` in PageRange) auf die zuständige Einstellung abbilden.
 	 * Fehlt `<nt>`, meint Citavi eine Seite.
 	 *
-	 * Belegt ist nur `Margin` — mehr kam im Testexport nicht vor. Die übrigen Namen
-	 * folgen Citavis Oberfläche (Seite, Spalte, Paragraph, Randnummer, Andere); trifft
-	 * einer davon nicht zu, fällt der Wert auf „Andere" und steht im Log (siehe
-	 * `getLocatorFor`).
+	 * Die vier Namen sind an einem Export mit allen Typen bestätigt. Ein Wert außerhalb
+	 * davon fällt auf „Andere" und steht im Log (siehe `getLocatorFor`).
 	 */
 	LOCATOR_PREF_BY_NUMBER_TYPE: {
 		Column: 'citaviLocatorColumn',
