@@ -90,14 +90,6 @@ Das Plugin patcht interne Zotero-Funktionen. Jeder Patch prüft vorher, ob es se
 gibt, und danach, ob er wirklich sitzt. Schlägt einer fehl, deaktiviert sich die
 betroffene Funktion still und schreibt eine Warnung ins Debug-Log — die übrigen
 Funktionen und Zotero selbst bleiben unberührt.
-
-## Noch offen
-
-- Modifier-Taste als Per-Klick-Override für das Nur-Nachweis-Zitieren
-- CSV-/Markdown-Import für ganze Bücher
-- Menüpunkt „Zitation der Auswahl kopieren"
-- Test-Matrix aus `docs/plan.md`
-
 ## Lizenz
 
 [AGPL-3.0-or-later](LICENSE) — dieselbe Lizenz wie Zotero selbst.
