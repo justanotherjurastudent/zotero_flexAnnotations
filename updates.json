@@ -1,0 +1,18 @@
+{
+	"addons": {
+		"flexannotate@justanotherjurastudent.github.io": {
+			"updates": [
+				{
+					"version": "0.2.0",
+					"update_link": "https://github.com/justanotherjurastudent/zotero_flexAnnotations/releases/download/v0.2.0/flexannotate.xpi",
+					"applications": {
+						"zotero": {
+							"strict_min_version": "7.0",
+							"strict_max_version": "10.*"
+						}
+					}
+				}
+			]
+		}
+	}
+}

@@ -51,3 +51,17 @@ flexannotate-prefs-keep-placeholders-description =
     Print-Annotationen brauchen einen Datei-Anhang als technischen Träger. Ist die
     Option aus, entfernt FlexAnnotate den Platzhalter, sobald die letzte Annotation
     darunter gelöscht wurde.
+
+flexannotate-prefs-citavi-heading = Citavi-Import
+flexannotate-prefs-citavi-import =
+    .label = Zitate ohne Dateianhang als Print-Annotationen übernehmen
+flexannotate-prefs-citavi-import-description =
+    Zoteros Citavi-Import übernimmt nur Zitate, die an einer PDF-Stelle hängen. Ist die
+    Option an, legt FlexAnnotate für die übrigen Zitate Print-Annotationen an.
+
+flexannotate-prefs-citavi-keep-notes =
+    .label = Notiz zum Zitat behalten
+flexannotate-prefs-citavi-keep-notes-description =
+    Zotero legt zu jedem Citavi-Zitat zusätzlich eine Notiz an. Ist die Option aus,
+    entfernt FlexAnnotate die Notiz zu genau den Zitaten, die es selbst als
+    Print-Annotation übernommen hat — Notizen zu PDF-Zitaten bleiben unberührt.

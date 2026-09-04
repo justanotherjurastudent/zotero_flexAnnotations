@@ -50,3 +50,17 @@ flexannotate-prefs-keep-placeholders =
 flexannotate-prefs-keep-placeholders-description =
     Print annotations need a file attachment as a technical carrier. With this option off,
     FlexAnnotate removes the placeholder once its last annotation has been deleted.
+
+flexannotate-prefs-citavi-heading = Citavi import
+flexannotate-prefs-citavi-import =
+    .label = Import quotations without a file attachment as print annotations
+flexannotate-prefs-citavi-import-description =
+    Zotero's Citavi import only keeps quotations anchored in a PDF. With this option on,
+    FlexAnnotate creates print annotations for the remaining ones.
+
+flexannotate-prefs-citavi-keep-notes =
+    .label = Keep the note for the quotation
+flexannotate-prefs-citavi-keep-notes-description =
+    Zotero also creates a note for every Citavi quotation. With this option off,
+    FlexAnnotate removes the note for exactly those quotations it turned into print
+    annotations — notes for PDF quotations are left untouched.

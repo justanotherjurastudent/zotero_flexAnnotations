@@ -18,7 +18,7 @@
  * Naheliegend wäre, `ImportCitaviAnnotatons` im Modul `zotero/import/citavi` zu
  * ersetzen — fileInterface.js:686 liest die Eigenschaft erst zum Aufrufzeitpunkt. Das
  * ist gescheitert: `require.js` lädt CommonJS-Module in eine eigene Sandbox, deren
- * `exports` von außen nicht beschreibbar ist (siehe NOTES-citavi-import.md).
+ * `exports` von außen nicht beschreibbar ist (siehe docs/architecture.md).
  *
  * Stattdessen zwei gewöhnliche, beschreibbare Objekte:
  *
@@ -131,6 +131,9 @@ FlexAnnotate.CitaviImport = {
 	 */
 	async _afterTranslate(translation) {
 		try {
+			if (!FlexAnnotate.getPref('citaviImport')) {
+				return;
+			}
 			if (!this._isCitavi(translation)) {
 				// Ohne diese Zeile wäre nicht zu unterscheiden, ob der Patch nicht
 				// greift oder der Übersetzer nur nicht als Citavi erkannt wurde.
@@ -362,6 +365,8 @@ FlexAnnotate.CitaviImport = {
 
 		let created = 0;
 		let seen = 0;
+		let notesRemoved = 0;
+		let keepNotes = FlexAnnotate.getPref('citaviKeepNotes');
 		// Warum ein Zitat übersprungen wurde — sonst ist „created 0" nicht deutbar
 		let skipped = { noReference: 0, noItem: 0, notRegular: 0, handledByZotero: 0, empty: 0 };
 		let attachmentCache = new Map();
@@ -407,12 +412,90 @@ FlexAnnotate.CitaviImport = {
 
 			await FlexAnnotate.PrintAnnotations.create(item, data);
 			created++;
+
+			if (!keepNotes && await this.removeQuoteNote(item, node, ZU)) {
+				notesRemoved++;
+			}
 		}
 
 		FlexAnnotate.log(`Citavi import: created ${created} print annotation(s) `
-			+ `from ${seen} KnowledgeItem(s); skipped `
+			+ `from ${seen} KnowledgeItem(s); removed ${notesRemoved} note(s); skipped `
 			+ Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' '));
 		return created;
+	},
+
+	/**
+	 * Entfernt die Notiz, die Zoteros Übersetzer zu demselben Zitat angelegt hat.
+	 *
+	 * ACHTUNG, das hier löscht Daten. Der Übersetzer baut die Notiz streng nach Schema
+	 * (`Citavi 5 XML.js:183-206`):
+	 *
+	 *     <h1>CoreStatement</h1>\n<p>Text</p>\n<i>Fundstelle</i>
+	 *
+	 * Jeder Teil kann fehlen. Zotero formt das HTML beim Speichern um, der Fließtext
+	 * bleibt aber erhalten — deshalb wird auf normalisiertem Text verglichen, nicht auf
+	 * Markup. Drei Bedingungen müssen alle zutreffen, sonst bleibt die Notiz stehen:
+	 *
+	 * 1. Sie hängt an derselben Quelle.
+	 * 2. Ihr Text beginnt mit Kernaussage + Zitattext dieses KnowledgeItems.
+	 * 3. Was danach noch folgt, ist kurz genug, um die Fundstelle zu sein.
+	 *
+	 * Bedingung 3 ist der eigentliche Schutz: ohne sie würde eine längere Notiz, die
+	 * zufällig mit demselben Satz beginnt, mitgelöscht.
+	 *
+	 * @param {Zotero.Item} item - die Quelle
+	 * @param {Element} node - <KnowledgeItem>
+	 * @param {Object} ZU - Zotero.Utilities aus der Übersetzungs-Sandbox
+	 * @returns {Promise<Boolean>} true, wenn eine Notiz entfernt wurde
+	 */
+	async removeQuoteNote(item, node, ZU) {
+		let wanted = this.normalizeText(
+			(ZU.xpathText(node, './CoreStatement') || '') + ' ' + (ZU.xpathText(node, './Text') || '')
+		);
+		if (wanted.length < this.MIN_NOTE_MATCH) {
+			return false;
+		}
+
+		for (let note of Zotero.Items.get(item.getNotes())) {
+			let plain = this.normalizeText(this.stripMarkup(note.getNote()));
+			if (!plain.startsWith(wanted)) {
+				continue;
+			}
+			if (plain.length - wanted.length > this.MAX_NOTE_TAIL) {
+				continue;
+			}
+			await note.eraseTx();
+			return true;
+		}
+		return false;
+	},
+
+	/** Kürzeres Zitat als das nicht abgleichen — zu leicht mit anderem zu verwechseln */
+	MIN_NOTE_MATCH: 20,
+	/** Was hinter dem Zitat noch stehen darf, damit es die Fundstelle sein kann */
+	MAX_NOTE_TAIL: 60,
+
+	/**
+	 * @param {String} html
+	 * @returns {String} Fließtext ohne Markup, Entities aufgelöst
+	 */
+	stripMarkup(html) {
+		return String(html || '')
+			.replace(/<[^>]*>/g, ' ')
+			.replace(/&nbsp;/g, ' ')
+			.replace(/&lt;/g, '<')
+			.replace(/&gt;/g, '>')
+			.replace(/&quot;/g, '"')
+			.replace(/&#0?39;|&apos;/g, "'")
+			.replace(/&amp;/g, '&');
+	},
+
+	/**
+	 * @param {String} text
+	 * @returns {String} auf einfache Leerzeichen normalisiert, ohne Ränder
+	 */
+	normalizeText(text) {
+		return String(text || '').replace(/\s+/g, ' ').trim();
 	},
 
 	/**

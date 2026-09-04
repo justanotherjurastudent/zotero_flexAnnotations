@@ -74,7 +74,10 @@ FlexAnnotate.PrintAnnotations = {
 		}
 
 		await annotation.saveTx();
-		FlexAnnotate.log(`Created print annotation ${annotation.key} on page "${annotation.annotationPageLabel}"`);
+		// annotationPageLabel liest sich nach dem Speichern als null zurück, wenn es leer
+		// war (item.js:2290 schreibt `pageLabel || null`) — sonst stünde "null" im Log.
+		FlexAnnotate.log(`Created print annotation ${annotation.key} on page `
+			+ `"${annotation.annotationPageLabel || ''}"`);
 		return annotation;
 	},
 

@@ -82,7 +82,7 @@ FlexAnnotate.IntegrationPatch = {
 		// Gegenprobe: Zuweisungen an fremde Objekte können lautlos verpuffen, wenn das
 		// Ziel eingefroren ist oder nur über einen Xray-Wrapper sichtbar wird — unser
 		// Code läuft nicht im strict mode, es gäbe dann keinen Fehler. Genau das ist
-		// beim Citavi-Modul passiert (siehe NOTES-citavi-import.md).
+		// beim Citavi-Modul passiert (siehe docs/architecture.md).
 		if (proto._insertCitingResult !== patched) {
 			Zotero.warn("FlexAnnotate: patch of _insertCitingResult did not take effect — "
 				+ "Feature B (Nur-Nachweis-Zitieren) bleibt wirkungslos.");

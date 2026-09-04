@@ -2,15 +2,17 @@
 
 ## Projekt
 
-FlexAnnotate — Zotero-Plugin. Zwei Features:
+FlexAnnotate — Zotero-Plugin. Drei Funktionen:
 
-- **A: Print-Annotationen** — Annotationen mit manueller Seitenangabe für Quellen ohne
+- **Print-Annotationen** — Annotationen mit manueller Seitenangabe für Quellen ohne
   Dateianhang (Printbücher).
-- **B: Nur-Nachweis-Zitieren** — beim Einfügen von Annotationen in Word/LibreOffice
+- **Nur-Nachweis-Zitieren** — beim Einfügen von Annotationen in Word/LibreOffice
   wahlweise nur die Zitation mit Locator setzen.
+- **Citavi-Import** — Zitate ohne Dateianhang als Print-Annotationen übernehmen.
 
-Spezifikation: `flexannotate-codex-plan.md`. Der Plan wurde für Zotero 7 geschrieben;
-Abweichungen für Zotero 10 sind unten und in `README.md` dokumentiert.
+Aufbau und die heiklen Stellen: `docs/architecture.md`. Ursprüngliche Spezifikation:
+`docs/plan.md` — für Zotero 7 geschrieben, Abweichungen sind hier und im `README.md`
+dokumentiert.
 
 ## Zielversion
 
@@ -72,12 +74,15 @@ Diese Punkte sind am Quellcode verifiziert und begründen den Aufbau des Plugins
 | `buildItemContextMenu` entfernt nur eigene Einträge, angehängte Plugin-Einträge bleiben | `zoteroPane.js:4170-4173` |
 | Farbpalette als `[l10n-Key, Hex]`-Paare | `xpcom/annotations.js` (`Zotero.Annotations.COLORS`) |
 | **`strict_max_version` ist auf Zotero 10 Pflicht.** Fehlt es im Manifest, wird das Plugin beim Parsen verworfen — es taucht nicht einmal in `extensions.json` auf und es erscheint keine Fehlermeldung. Experimentell belegt: von fünf sonst identischen Test-Plugins lud nur das mit `strict_max_version`. | Empirisch, Zotero 10.0.1 |
-| **Nach jedem Patch an einem fremden Objekt zurücklesen und vergleichen.** Zuweisungen können lautlos verpuffen — eingefrorene Objekte oder Xray-Wrapper — und unser Code läuft nicht im strict mode, wirft also nicht. Ein wirkungsloser Patch sieht sonst genau wie ein erfolgreicher aus. | Belegt am Citavi-Modul, siehe `NOTES-citavi-import.md` |
+| **Nach jedem Patch an einem fremden Objekt zurücklesen und vergleichen.** Zuweisungen können lautlos verpuffen — eingefrorene Objekte oder Xray-Wrapper — und unser Code läuft nicht im strict mode, wirft also nicht. Ein wirkungsloser Patch sieht sonst genau wie ein erfolgreicher aus. | Belegt am Citavi-Modul, siehe `docs/architecture.md` |
 | CommonJS-Module aus `require()` liegen in einer eigenen Loader-Sandbox und ihr `exports` ist eingefroren: weder direkt noch über `wrappedJSObject` oder `Cu.waiveXrays()` beschreibbar. Solche Module sind als Patch-Ziel ungeeignet. | `resource://zotero/require.js`, `resource://zotero/loader.sys.mjs` |
 | XUL-Elemente werden nur in privilegierten chrome-Dokumenten geparst. Ein Plugin kann kein `chrome.manifest` registrieren, `openDialog()` mit `file://`- oder `jar:`-URL ergibt ein leeres Fenster. Oberfläche stattdessen mit `MozXULElement.parseXULToFragment()` im Hauptfenster bauen. | wie Zotero selbst in `elements/*.js` |
 | Eigene Skripte mit `loadSubScriptWithOptions(url, { ignoreCache: true })` laden — auf **jeder** Ebene. `loadSubScript()` bedient sich sonst aus dem Startup-Cache und liefert stillschweigend die vorige Fassung. | `xpcom/plugins.js:205-210` |
 | Fluent-Wertnachrichten (`general-yellow = Gelb`) landen über `data-l10n-id` als textContent; ein XUL-`<menuitem>` zeigt aber das `label`-Attribut. Dafür `Zotero.getString()` verwenden. | `elements/zoteroSearch.js:1269` |
 | Einstellungs-Panes brauchen ein eigenes `<linkset>` mit der Plugin-FTL, sonst bleiben alle Beschriftungen leer (`translateFragment() failed`) | `preferences/preferences.js:355`, `preferences_general.xhtml:29` |
+| `Zotero_File_Interface` ist **kein Singleton**: jedes Fenster, das `fileInterface.js` lädt, hat ein eigenes Objekt. Der Importassistent lädt es selbst, ein Patch am Hauptfenster erreicht ihn also nicht — und der Fehler ist stumm. | `import/importWizard.xhtml`, `fileInterface.js:179` |
+| Zoteros Citavi-Durchlauf greift den Anhang einer Quelle blind über `getAttachments()[0]`. Wer vorher einen eigenen Anhang anlegt, verschiebt ihm das Ziel. | `import/citavi.js:76-82` |
+| `annotationPageLabel` wird als `pageLabel \|\| null` gespeichert und liest sich bei leerem Wert als `null` zurück — in Logausgaben sonst als `"null"` sichtbar | `xpcom/data/item.js:2290` |
 | Der Pref `extensions.strictCompatibility` (`zotero.js:6`, `false`) ist irreführend: `XPIInstall.sys.mjs:507` setzt `addon.strictCompatibility` bei jedem Release-Build (ohne `-beta`/`-dev`/`SOURCE` in der Version) selbst auf `true` | `modules/addons/XPIInstall.sys.mjs:507` (Toolkit-omni.ja) |
 
 ## Konventionen
