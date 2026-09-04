@@ -1,10 +1,12 @@
-# Citavi-Import: Stand und offener Punkt
+# Citavi-Import: Stand
 
 Ziel: Citavi-Zitate an Quellen **ohne** Dateianhang beim Import als Print-Annotationen
 übernehmen. Zoteros Importer verwirft sie.
 
-**Status: funktioniert noch nicht.** Der Code in `src/citaviImport.js` ist vollständig
-und gegen einen echten Export geprüft, der Einhängepunkt trägt aber nicht (siehe unten).
+**Status: neuer Einhängepunkt gebaut, noch nicht am echten Import erprobt.** Der erste
+Versuch (Modul-Export ersetzen) trug nicht; warum, steht unter „Der gescheiterte
+Einhängepunkt". Was jetzt stattdessen gemacht wird, steht unter „Der neue
+Einhängepunkt".
 
 ## Was am Testexport belegt ist
 
@@ -28,7 +30,7 @@ Quads-Format (`import/citavi.js:16,74`). Bei 7.4 nimmt er `JSON.parse` — was h
 zufällig passt. Bei einem echten Citavi-5-Export mit JSON-Quads (oder umgekehrt) wäre
 das ein Fehler in Zotero; für uns bisher ohne Folgen.
 
-## Der offene Punkt: der Einhängepunkt trägt nicht
+## Der gescheiterte Einhängepunkt
 
 `fileInterface.js:685` ruft den Annotations-Import so auf:
 
@@ -59,37 +61,52 @@ zurücklesen und vergleichen. Ohne diese Gegenprobe sieht ein wirkungsloser Patc
 wie ein erfolgreicher aus. `src/integrationPatch.js` und `src/citaviImport.js` machen
 das inzwischen.
 
-## Nächster Schritt
+## Der neue Einhängepunkt
 
-Statt des Modul-Exports einen Punkt patchen, der auf einem gewöhnlichen, beschreibbaren
-Objekt liegt. Aussichtsreichster Kandidat:
+Zwei Patches auf gewöhnlichen, beschreibbaren Objekten statt auf dem Modul-Export:
 
+| Patch | Objekt | Aufgabe |
+|---|---|---|
+| `patch()` | `Zotero.Translate.Import.prototype.translate` | erkennt am Übersetzer-Label, dass gerade ein Citavi-Export gelesen wurde, und merkt sich das Translation-Objekt |
+| `addToWindow()` | `Zotero_File_Interface.importFile` / `.importFromClipboard` | löst den Durchlauf aus — erst **nachdem** Zoteros eigener Annotations-Durchlauf gelaufen ist |
+
+Am Translation-Objekt hängt beides, was der Durchlauf braucht: `_itemSaver._IDMap`
+(Citavi-`ReferenceID` → Zotero-Item) und `_io` für das XML.
+
+**Warum der zweite Patch nötig ist.** `translate()` ist die einzige Stelle, an der wir
+das Translation-Objekt zu fassen bekommen — sie liegt aber *vor* dem Citavi-Durchlauf in
+`fileInterface.js:686`. Liefen wir dort, hätten die Quellen schon unsere Platzhalter-PDF,
+wenn Zotero mit
+
+```js
+const itemAttachmentIDs = item.getAttachments();
+...
+const itemAttachment = await Zotero.Items.getAsync(itemAttachmentIDs[0]);
 ```
-Zotero.Translate.Import.prototype.translate
-```
 
-Nach dem Original prüfen, ob der verwendete Übersetzer „Citavi" heißt, und dann
-`FlexAnnotate.CitaviImport.importPrintQuotes(this)` aufrufen — `this` ist das
-Translation-Objekt und liefert beides, was der Durchlauf braucht:
-`_itemSaver._IDMap` (Citavi-`ReferenceID` → Zotero-Item) und `_io` für das XML.
+blind den ersten Anhang greift: PDF-Annotationen könnten auf dem Platzhalter landen,
+und Quellen ohne echten Anhang würden nicht mehr wie bisher übersprungen. Deshalb
+merken wir uns den Durchlauf nur vor und holen ihn nach, wenn `importFile` zurückkommt.
 
-Vor dem Bauen unbedingt prüfen, ob `Zotero.Translate.Import.prototype` überhaupt
-beschreibbar ist — mit derselben Gegenprobe. Falls nicht, bleibt als Rückfallebene ein
-eigener Menüpunkt „Citavi-Zitate nachtragen…", der die XML-Datei erneut einliest und
-die Quellen über Titel und Jahr zuordnet; das ist unschärfer, hängt aber an keinem
-internen Objekt.
+`Zotero_File_Interface` ist ein einfaches Fensterobjekt (`fileInterface.js:179`,
+`new function () { this.importFile = ... }`); `_finishImport`, wo der eigentliche Ablauf
+steht, ist eine private `var` und kommt als Ziel nicht in Frage.
 
-`importPrintQuotes()` selbst ist fertig und ungetestet — sobald es aufgerufen wird,
-sollte es 15 Print-Annotationen anlegen und `Citavi import: created N print
-annotation(s)` ins Log schreiben.
+Greift der zweite Patch nicht, läuft der Durchlauf ersatzweise direkt nach `translate()`
+— mit der obigen Einschränkung und einer Warnung im Log. Beide Patches prüfen per
+Rücklesen, ob sie sitzen.
 
 ## Testablauf
 
 1. Zotero mit Logausgabe starten:
    `& "$env:LOCALAPPDATA\Zotero\zotero.exe" -purgecaches -ZoteroDebugText`
-2. Die `.ctv6` in eine **neue, leere Sammlung** importieren (ein zweiter Import
+2. Beim Start im Log erwarten:
+   `Patched Translate.Import.translate for Citavi print quotes` und
+   `Sequenced Citavi pass after importFile, importFromClipboard`
+3. Die `.ctv6` in eine **neue, leere Sammlung** importieren (ein zweiter Import
    derselben Datei verdoppelt die Annotationen).
-3. Im Log auf `Citavi import hook invoked` und `Citavi import: created N` prüfen.
+4. Im Log erwarten: `Citavi import detected; print quotes queued`, danach
+   `Citavi import: created 15 print annotation(s)`.
 
 Zur Einordnung: Die Zitate erscheinen ohnehin als **Notizen** — die legt der Übersetzer
 selbst an (`<h1>CoreStatement</h1><p>Text</p>`), unabhängig von uns. Unser Durchlauf

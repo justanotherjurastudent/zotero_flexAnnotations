@@ -34,7 +34,7 @@ FlexAnnotate = {
 	},
 
 	uninit() {
-		for (let patch of [this.IntegrationPatch, this.CitationDialogPatch]) {
+		for (let patch of [this.IntegrationPatch, this.CitationDialogPatch, this.CitaviImport]) {
 			try {
 				patch.unpatch();
 			}
@@ -68,6 +68,7 @@ FlexAnnotate = {
 	async main() {
 		this.IntegrationPatch.patch();
 		this.CitationDialogPatch.patch();
+		this.CitaviImport.patch();
 	},
 
 	//

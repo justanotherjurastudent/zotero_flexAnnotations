@@ -13,22 +13,42 @@
  * Zitate an Printquellen haben gar keinen `<Annotation>`-Knoten, sondern existieren nur
  * als `<KnowledgeItem>`. Dieser Durchlauf holt sie nach.
  *
- * Einhängepunkt: fileInterface.js:686 ruft `(0, _citavi.ImportCitaviAnnotatons)(...)` auf.
- * Die Eigenschaft wird zum Aufrufzeitpunkt vom Modulobjekt gelesen, deshalb genügt es,
- * sie dort zu ersetzen. `require.js` und `fileInterface.js` werden in dasselbe
- * Fensterobjekt geladen (zoteroPane.xhtml:62,83), `window.require` liefert also genau
- * die Modulinstanz, die fileInterface.js verwendet.
+ * ## Warum zwei Einhängepunkte
+ *
+ * Naheliegend wäre, `ImportCitaviAnnotatons` im Modul `zotero/import/citavi` zu
+ * ersetzen — fileInterface.js:686 liest die Eigenschaft erst zum Aufrufzeitpunkt. Das
+ * ist gescheitert: `require.js` lädt CommonJS-Module in eine eigene Sandbox, deren
+ * `exports` von außen nicht beschreibbar ist (siehe NOTES-citavi-import.md).
+ *
+ * Stattdessen zwei gewöhnliche, beschreibbare Objekte:
+ *
+ * 1. `Zotero.Translate.Import.prototype.translate` — sagt uns, dass gerade ein
+ *    Citavi-Export eingelesen wurde, und hält das Translation-Objekt fest. Daran hängt
+ *    beides, was der Durchlauf braucht: `_itemSaver._IDMap` (Citavi-`ReferenceID` →
+ *    Zotero-Item) und `_io` für das XML.
+ * 2. `Zotero_File_Interface.importFile` / `importFromClipboard` im Fenster — bestimmt,
+ *    *wann* der Durchlauf läuft: erst nachdem Zoteros eigener Annotations-Durchlauf
+ *    (fileInterface.js:686) fertig ist.
+ *
+ * Die Reihenfolge ist nicht kosmetisch. Wir hängen eine Platzhalter-PDF an die Quelle;
+ * Zoteros Durchlauf greift mit `getAttachments()[0]` blind auf den ersten Anhang zu und
+ * würde PDF-Annotationen auf unserem Platzhalter ablegen, wenn wir zuerst liefen. Fehlt
+ * der zweite Patch, läuft unser Durchlauf ersatzweise direkt nach `translate()` — mit
+ * dieser Einschränkung und einer Warnung im Log.
  */
 FlexAnnotate.CitaviImport = {
-	MODULE: 'zotero/import/citavi',
-	/** Schreibfehler im Namen stammt aus Zotero und muss so bleiben */
-	EXPORT_NAME: 'ImportCitaviAnnotatons',
+	/** Wie fileInterface.js:685 den Übersetzer erkennt */
+	TRANSLATOR_LABEL: /^Citavi (?:[56]) XML/i,
 
-	_hooks: null,
+	/** { proto, original } des globalen translate()-Patches */
+	_translatePatch: null,
+	/** WeakMap<Window, Array<{ target, name, original }>> */
+	_windowPatches: null,
+	/** Translation-Objekt eines Citavi-Imports, dessen Durchlauf noch aussteht */
+	_pending: null,
+	/** true, sobald mindestens ein Fenster den Durchlauf richtig einreiht */
+	_sequenced: false,
 
-	/**
-	 * Farben und Feldbelegung je Citavi-Zitattyp, wie in import/citavi.js:117-148.
-	 */
 	QUOTATION_TYPES: {
 		1: { color: '#2ea8e5' }, // direktes Zitat
 		2: { color: '#a6507b', swap: true }, // indirektes Zitat
@@ -46,137 +66,183 @@ FlexAnnotate.CitaviImport = {
 		Margin: 'paragraph' // Randnummer
 	},
 
+	//
+	// Einhängepunkt 1: erkennen, dass ein Citavi-Export gelesen wurde
+	//
+
+	/**
+	 * @returns {Boolean} true, wenn der Patch nachweislich sitzt
+	 */
+	patch() {
+		let proto = Zotero.Translate?.Import?.prototype;
+		if (!proto || typeof proto.translate !== 'function') {
+			Zotero.warn("FlexAnnotate: Zotero.Translate.Import.prototype.translate not found — "
+				+ "Citavi-Zitate ohne Anhang werden nicht importiert.");
+			return false;
+		}
+
+		let original = proto.translate;
+		let self = this;
+
+		let patched = function (...args) {
+			// translate() ist eine Zotero.Promise.method und liefert immer ein Promise.
+			// Ein Fehler darin wird unverändert weitergereicht.
+			return Promise.resolve(original.apply(this, args)).then(async (items) => {
+				await self._afterTranslate(this);
+				return items;
+			});
+		};
+
+		proto.translate = patched;
+		if (proto.translate !== patched) {
+			// Gegenprobe: eine Zuweisung, die nur in einem Xray-Expando landet, wäre
+			// von einem gelungenen Patch sonst nicht zu unterscheiden.
+			Zotero.warn("FlexAnnotate: patch of Translate.Import.translate did not take effect — "
+				+ "Citavi-Zitate ohne Anhang werden nicht importiert.");
+			return false;
+		}
+
+		this._translatePatch = { proto, original };
+		FlexAnnotate.log("Patched Translate.Import.translate for Citavi print quotes");
+		return true;
+	},
+
+	unpatch() {
+		let patch = this._translatePatch;
+		if (!patch) {
+			return;
+		}
+		patch.proto.translate = patch.original;
+		this._translatePatch = null;
+		this._pending = null;
+		FlexAnnotate.log("Removed Translate.Import.translate patch");
+	},
+
+	/**
+	 * @param {Object} translation
+	 * @returns {Promise}
+	 */
+	async _afterTranslate(translation) {
+		try {
+			if (!this._isCitavi(translation)) {
+				return;
+			}
+			this._pending = translation;
+			if (this._sequenced) {
+				FlexAnnotate.log("Citavi import detected; print quotes queued");
+				return;
+			}
+			Zotero.warn("FlexAnnotate: Citavi print quotes run right after translate() — "
+				+ "PDF-Annotationen derselben Quellen können auf dem Platzhalter landen.");
+			await this._runPending();
+		}
+		catch (e) {
+			FlexAnnotate.logError(e);
+		}
+	},
+
+	/**
+	 * @param {Object} translation
+	 * @returns {Boolean}
+	 */
+	_isCitavi(translation) {
+		let translator = translation?.translator?.[0];
+		let label = typeof translator == 'string' ? null : translator?.label;
+		return !!label && this.TRANSLATOR_LABEL.test(label);
+	},
+
+	//
+	// Einhängepunkt 2: den Durchlauf hinter Zoteros eigenen einreihen
+	//
+
 	/**
 	 * @param {Window} window - Zotero-Hauptfenster
 	 */
 	addToWindow(window) {
-		if (this._hooks?.has(window)) {
-			return;
-		}
-		if (typeof window.require !== 'function') {
-			FlexAnnotate.log("window.require not available; Citavi import hook skipped");
+		if (this._windowPatches?.has(window)) {
 			return;
 		}
 
-		let module;
-		try {
-			module = window.require(this.MODULE);
-		}
-		catch (e) {
-			FlexAnnotate.logError(e);
+		let fileInterface = window.Zotero_File_Interface;
+		if (!fileInterface) {
+			Zotero.warn("FlexAnnotate: Zotero_File_Interface not found — "
+				+ "Citavi-Durchlauf wird nicht eingereiht.");
 			return;
 		}
 
-		if (!module || typeof module[this.EXPORT_NAME] !== 'function') {
-			Zotero.warn(`FlexAnnotate: ${this.MODULE}.${this.EXPORT_NAME} not found — `
-				+ "Citavi-Zitate ohne Anhang werden nicht importiert.");
-			return;
-		}
-
-		let original = module[this.EXPORT_NAME];
 		let self = this;
+		let patches = [];
 
-		let wrapper = async function (translation) {
-			FlexAnnotate.log("Citavi import hook invoked");
-
-			// Zoteros eigener Durchlauf zuerst, damit PDF-Zitate unverändert ankommen.
-			// Ein Fehler darin darf unseren Durchlauf nicht verhindern: die Print-Zitate
-			// haben mit dem PDF-Pfad nichts zu tun.
-			let failure = null;
-			try {
-				await original.apply(this, arguments);
-			}
-			catch (e) {
-				failure = e;
-				FlexAnnotate.logError(e);
-			}
-
-			try {
-				await self.importPrintQuotes(translation);
-			}
-			catch (e) {
-				FlexAnnotate.logError(e);
-			}
-
-			if (failure) {
-				throw failure;
-			}
-		};
-
-		let target = this.findWritableTarget(module, wrapper);
-		if (!target) {
-			Zotero.warn("FlexAnnotate: Citavi import hook did not take effect — "
-				+ "Zitate ohne Anhang bleiben aus.");
-			return;
-		}
-
-		this._hooks = this._hooks || new WeakMap();
-		this._hooks.set(window, { module: target, original });
-		FlexAnnotate.log("Hooked Citavi import");
-	},
-
-	/**
-	 * Setzt den Wrapper und prüft, ob die Zuweisung wirklich angekommen ist.
-	 *
-	 * Aus unserer Sandbox heraus sehen wir Objekte anderer Compartments durch
-	 * Xray-Wrapper. Eine Zuweisung darauf kann in einem nur für uns sichtbaren Expando
-	 * landen, während fileInterface.js weiter die ursprüngliche Funktion sieht — der
-	 * Patch ginge unbemerkt ins Leere. Deshalb werden die möglichen Zugänge zum echten
-	 * Objekt der Reihe nach probiert und jeweils zurückgelesen.
-	 *
-	 * @param {Object} module
-	 * @param {Function} wrapper
-	 * @returns {Object|null} Das Objekt, auf dem die Zuweisung hält
-	 */
-	findWritableTarget(module, wrapper) {
-		let candidates = [
-			['direkt', module],
-			['wrappedJSObject', module.wrappedJSObject]
-		];
-
-		try {
-			// Cu.waiveXrays legt den Xray-Wrapper ab; in manchen Umgebungen ist
-			// Components im Plugin-Scope nicht vorhanden, daher abgesichert.
-			if (typeof Components !== 'undefined' && Components.utils?.waiveXrays) {
-				candidates.push(['waiveXrays', Components.utils.waiveXrays(module)]);
-			}
-		}
-		catch (e) {
-			FlexAnnotate.logError(e);
-		}
-
-		for (let [label, candidate] of candidates) {
-			if (!candidate) {
+		for (let name of ['importFile', 'importFromClipboard']) {
+			let original = fileInterface[name];
+			if (typeof original !== 'function') {
 				continue;
 			}
-			try {
-				candidate[this.EXPORT_NAME] = wrapper;
-				if (candidate[this.EXPORT_NAME] === wrapper) {
-					FlexAnnotate.log(`Citavi hook installed via ${label}`);
-					return candidate;
+
+			let patched = async function (...args) {
+				// Ein früherer, nie eingelöster Durchlauf darf nicht nachwirken.
+				self._pending = null;
+				try {
+					return await original.apply(this, args);
 				}
+				finally {
+					await self._runPending();
+				}
+			};
+
+			fileInterface[name] = patched;
+			if (fileInterface[name] !== patched) {
+				FlexAnnotate.log(`Citavi sequencing: ${name} is not writable`);
+				continue;
 			}
-			catch (e) {
-				FlexAnnotate.log(`Citavi hook via ${label} failed: ${e}`);
-			}
+			patches.push({ target: fileInterface, name, original });
 		}
 
-		FlexAnnotate.log("Citavi hook: no writable access to the module export "
-			+ `(candidates tried: ${candidates.map(c => c[0]).join(', ')})`);
-		return null;
+		if (!patches.length) {
+			Zotero.warn("FlexAnnotate: could not sequence the Citavi pass — "
+				+ "es läuft ersatzweise direkt nach translate().");
+			return;
+		}
+
+		this._windowPatches = this._windowPatches || new WeakMap();
+		this._windowPatches.set(window, patches);
+		this._sequenced = true;
+		FlexAnnotate.log(`Sequenced Citavi pass after ${patches.map(p => p.name).join(', ')}`);
 	},
 
 	/**
 	 * @param {Window} window
 	 */
 	removeFromWindow(window) {
-		let hook = this._hooks?.get(window);
-		if (!hook) {
+		let patches = this._windowPatches?.get(window);
+		if (!patches) {
 			return;
 		}
-		hook.module[this.EXPORT_NAME] = hook.original;
-		this._hooks.delete(window);
-		FlexAnnotate.log("Removed Citavi import hook");
+		for (let { target, name, original } of patches) {
+			target[name] = original;
+		}
+		this._windowPatches.delete(window);
+		FlexAnnotate.log("Removed Citavi sequencing");
+	},
+
+	/**
+	 * Holt den vorgemerkten Durchlauf nach. Ein Fehler darin darf den Import nicht
+	 * abbrechen — die regulär importierten Einträge stehen bereits.
+	 *
+	 * @returns {Promise}
+	 */
+	async _runPending() {
+		let translation = this._pending;
+		this._pending = null;
+		if (!translation) {
+			return;
+		}
+		try {
+			await this.importPrintQuotes(translation);
+		}
+		catch (e) {
+			FlexAnnotate.logError(e);
+		}
 	},
 
 	/**
