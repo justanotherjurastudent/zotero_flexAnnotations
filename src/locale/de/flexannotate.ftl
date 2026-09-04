@@ -65,3 +65,11 @@ flexannotate-prefs-citavi-keep-notes-description =
     Zotero legt zu jedem Citavi-Zitat zusätzlich eine Notiz an. Ist die Option aus,
     entfernt FlexAnnotate die Notiz zu genau den Zitaten, die es selbst als
     Print-Annotation übernommen hat — Notizen zu PDF-Zitaten bleiben unberührt.
+
+flexannotate-prefs-citavi-locator-page =
+    .value = Seitenangaben zitieren als
+flexannotate-prefs-citavi-locator-margin =
+    .value = Randnummern zitieren als
+flexannotate-prefs-citavi-locator-description =
+    Citavi unterscheidet nur Seite und Randnummer. Für Randnummern kennt CSL keine
+    Entsprechung — je nach Zitierstil passt „Absatz", „Opus" oder „Spalte".

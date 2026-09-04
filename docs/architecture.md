@@ -59,8 +59,15 @@ als Warnung im Log.
 Ist *Notiz zum Zitat behalten* aus (Standard), entfernt `removeQuoteNote()` die Notiz,
 die Zoteros Übersetzer zu demselben Wissenselement angelegt hat. **Das löscht Daten.**
 Drei Bedingungen müssen zusammen zutreffen: gleiche Quelle, Text beginnt mit Kernaussage
-+ Zitat, und der Rest danach ist kurz genug für die Fundstelle. Die dritte ist der
-eigentliche Schutz — ohne sie würde eine längere Notiz mit gleichem Anfang mitgelöscht.
++ Zitat, und was danach folgt, kann nur die Fundstelle sein — höchstens Ziffern,
+Bindestriche und Leerzeichen. Die dritte ist der eigentliche Schutz: ohne sie würde eine
+längere Notiz mit gleichem Anfang mitgelöscht.
+
+Die Regel kam ursprünglich mit einer Mindestlänge für das Zitat. Die hat Notizen wie
+„Hallo" verschont, obwohl sie sehr wohl vom Import stammten. Der Rest hinter dem Zitat
+unterscheidet zuverlässiger als die Länge des Zitats — der Übersetzer streift aus der
+Fundstelle ohnehin alles außer Ziffern und Bindestrichen (`extractPages()`).
+
 Betroffen sind nur Zitate, die FlexAnnotate selbst übernommen hat; Notizen zu
 PDF-Zitaten bleiben unberührt.
 
@@ -101,10 +108,11 @@ UTF-8 mit BOM), 57 `KnowledgeItem`.
 Ergebnis des Durchlaufs an diesem Export: 15 Print-Annotationen, 42 Zitate von Zotero
 selbst als PDF-Annotationen erledigt.
 
-**Bekannte Grenze:** Citavis Randnummern (`<nt>Margin</nt>`) werden auf den CSL-Locator
-`paragraph` abgebildet. Einen Locator für Randnummern kennt CSL nicht; die Zitation
-rendert entsprechend „Abs." statt „Rn.". Wer das anders braucht, ändert
-`LOCATOR_BY_NUMBER_TYPE` in `citaviImport.js`.
+**Fundstellen:** Citavi unterscheidet nur Seite und Randnummer (`<nt>Margin</nt>`).
+Einen CSL-Locator für Randnummern gibt es nicht — `paragraph` rendert „Abs.", je nach
+Zitierstil passt eher `opus` oder `column`. Beide Zuordnungen sind deshalb
+Einstellungen (`citaviLocatorPage`, `citaviLocatorMargin`); die Auswahl kommt aus
+`Zotero.Cite.labels`, derselben Liste wie im Zitationsdialog.
 
 ## Der gescheiterte erste Einhängepunkt
 

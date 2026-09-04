@@ -11,3 +11,9 @@ pref("extensions.flexannotate.citaviImport", true);
 // Die Notiz behalten, die Zoteros Übersetzer zu demselben Zitat anlegt.
 // Aus = FlexAnnotate entfernt sie, sobald es das Zitat als Annotation übernommen hat.
 pref("extensions.flexannotate.citaviKeepNotes", false);
+
+// CSL-Locator für Citavis Fundstellen. Citavi unterscheidet nur Seite und Randnummer
+// (<nt>Margin</nt>); für Randnummern gibt es in CSL keine Entsprechung, deshalb hängt
+// die sinnvolle Wahl am Zitierstil.
+pref("extensions.flexannotate.citaviLocatorPage", "page");
+pref("extensions.flexannotate.citaviLocatorMargin", "paragraph");

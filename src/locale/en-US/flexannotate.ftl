@@ -64,3 +64,11 @@ flexannotate-prefs-citavi-keep-notes-description =
     Zotero also creates a note for every Citavi quotation. With this option off,
     FlexAnnotate removes the note for exactly those quotations it turned into print
     annotations — notes for PDF quotations are left untouched.
+
+flexannotate-prefs-citavi-locator-page =
+    .value = Cite page numbers as
+flexannotate-prefs-citavi-locator-margin =
+    .value = Cite margin numbers as
+flexannotate-prefs-citavi-locator-description =
+    Citavi only distinguishes pages from margin numbers. CSL has no locator for margin
+    numbers — depending on the citation style, “paragraph”, “opus” or “column” fits.

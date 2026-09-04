@@ -52,5 +52,38 @@
 			native="true"
 		/>
 		<description class="indented-pref" data-l10n-id="flexannotate-prefs-citavi-keep-notes-description"/>
+
+		<!-- Die menupopups füllt preferences.js aus Zotero.Cite.labels. Dass sie beim
+		     Binden noch leer sind, ist in Ordnung: preferences.js:516-534 beobachtet
+		     nachträglich eingefügte menuitems und setzt die Auswahl dann nach. -->
+		<hbox align="center">
+			<label
+				control="flexannotate-pref-citavi-locator-page"
+				data-l10n-id="flexannotate-prefs-citavi-locator-page"
+			/>
+			<menulist
+				id="flexannotate-pref-citavi-locator-page"
+				preference="extensions.flexannotate.citaviLocatorPage"
+				native="true"
+			>
+				<menupopup id="flexannotate-pref-citavi-locator-page-popup"/>
+			</menulist>
+		</hbox>
+
+		<hbox align="center">
+			<label
+				control="flexannotate-pref-citavi-locator-margin"
+				data-l10n-id="flexannotate-prefs-citavi-locator-margin"
+			/>
+			<menulist
+				id="flexannotate-pref-citavi-locator-margin"
+				preference="extensions.flexannotate.citaviLocatorMargin"
+				native="true"
+			>
+				<menupopup id="flexannotate-pref-citavi-locator-margin-popup"/>
+			</menulist>
+		</hbox>
+
+		<description class="indented-pref" data-l10n-id="flexannotate-prefs-citavi-locator-description"/>
 	</groupbox>
 </vbox>

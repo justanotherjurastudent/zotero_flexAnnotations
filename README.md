@@ -53,6 +53,8 @@ powershell -File tools/build.ps1     # -> build/flexannotate.xpi
 | Leere Platzhalter-Anhänge behalten | aus | Platzhalter bleibt bestehen, auch wenn keine Annotation mehr daran hängt |
 | Zitate ohne Dateianhang als Print-Annotationen übernehmen | **an** | Citavi-Import: Zitate, die Zotero verwirft, werden übernommen |
 | Notiz zum Zitat behalten | aus | Citavi-Import: die zusätzliche Notiz zum übernommenen Zitat bleibt stehen |
+| Seitenangaben zitieren als | Seite | CSL-Locator für Citavi-Fundstellen ohne Nummerierungsart |
+| Randnummern zitieren als | Absatz | CSL-Locator für Citavis `<nt>Margin</nt>` — je nach Zitierstil passt auch Opus oder Spalte |
 
 ## Entwicklung
 
@@ -99,4 +101,4 @@ Funktionen und Zotero selbst bleiben unberührt.
 
 ## Lizenz
 
-Noch nicht festgelegt.
+[AGPL-3.0-or-later](LICENSE) — dieselbe Lizenz wie Zotero selbst.

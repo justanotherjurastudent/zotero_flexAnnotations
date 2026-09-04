@@ -64,10 +64,18 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * Citavis Nummerierungsart (`<nt>` in PageRange) auf einen CSL-Locator abbilden.
-	 * Ohne Angabe meint Citavi eine Seite.
+	 *
+	 * Citavi kennt nur zwei Fälle: `Margin` ist eine Randnummer, alles ohne `<nt>` eine
+	 * Seite. Wohin die beiden zeigen, entscheidet der Nutzer — für Randnummern gibt es
+	 * in CSL keine passende Entsprechung, je nach Zitierstil kommen `paragraph`, `opus`
+	 * oder `column` in Frage.
+	 *
+	 * @param {String|null} numberType - Inhalt von `<nt>`, oder null
+	 * @returns {String} CSL-Locator
 	 */
-	LOCATOR_BY_NUMBER_TYPE: {
-		Margin: 'paragraph' // Randnummer
+	getLocatorFor(numberType) {
+		let pref = numberType === 'Margin' ? 'citaviLocatorMargin' : 'citaviLocatorPage';
+		return FlexAnnotate.getPref(pref) || 'page';
 	},
 
 	//
@@ -438,10 +446,11 @@ FlexAnnotate.CitaviImport = {
 	 *
 	 * 1. Sie hängt an derselben Quelle.
 	 * 2. Ihr Text beginnt mit Kernaussage + Zitattext dieses KnowledgeItems.
-	 * 3. Was danach noch folgt, ist kurz genug, um die Fundstelle zu sein.
+	 * 3. Was danach noch folgt, kann nur die Fundstelle sein (siehe `isPageTail`).
 	 *
 	 * Bedingung 3 ist der eigentliche Schutz: ohne sie würde eine längere Notiz, die
-	 * zufällig mit demselben Satz beginnt, mitgelöscht.
+	 * zufällig mit demselben Satz beginnt, mitgelöscht. Sie trägt auch bei sehr kurzen
+	 * Zitaten — „Hallo" genügt, solange dahinter nichts als eine Zahl steht.
 	 *
 	 * @param {Zotero.Item} item - die Quelle
 	 * @param {Element} node - <KnowledgeItem>
@@ -452,7 +461,7 @@ FlexAnnotate.CitaviImport = {
 		let wanted = this.normalizeText(
 			(ZU.xpathText(node, './CoreStatement') || '') + ' ' + (ZU.xpathText(node, './Text') || '')
 		);
-		if (wanted.length < this.MIN_NOTE_MATCH) {
+		if (!wanted) {
 			return false;
 		}
 
@@ -461,7 +470,7 @@ FlexAnnotate.CitaviImport = {
 			if (!plain.startsWith(wanted)) {
 				continue;
 			}
-			if (plain.length - wanted.length > this.MAX_NOTE_TAIL) {
+			if (!this.isPageTail(plain.slice(wanted.length))) {
 				continue;
 			}
 			await note.eraseTx();
@@ -470,8 +479,24 @@ FlexAnnotate.CitaviImport = {
 		return false;
 	},
 
-	/** Kürzeres Zitat als das nicht abgleichen — zu leicht mit anderem zu verwechseln */
-	MIN_NOTE_MATCH: 20,
+	/**
+	 * Darf hinter dem Zitat nur noch die Fundstelle stehen?
+	 *
+	 * Der Übersetzer streift aus der Fundstelle alles außer Ziffern und Bindestrichen
+	 * (`extractPages()`, `Citavi 5 XML.js`) — ein Rest mit Buchstaben kann also nicht von
+	 * ihm stammen und gehört zu einer fremden Notiz.
+	 *
+	 * Das ersetzt eine frühere Mindestlänge für das Zitat. Die hat Notizen wie „Hallo"
+	 * verschont, obwohl sie sehr wohl vom Import stammten — der Rest hinter dem Zitat
+	 * unterscheidet zuverlässiger als die Länge des Zitats.
+	 *
+	 * @param {String} tail
+	 * @returns {Boolean}
+	 */
+	isPageTail(tail) {
+		return tail.length <= this.MAX_NOTE_TAIL && /^[\s\d–-]*$/.test(tail);
+	},
+
 	/** Was hinter dem Zitat noch stehen darf, damit es die Fundstelle sein kann */
 	MAX_NOTE_TAIL: 60,
 
@@ -576,9 +601,7 @@ FlexAnnotate.CitaviImport = {
 			pageLabel = number && number !== '-1' ? number : '';
 		}
 
-		let locator = numberType
-			? (this.LOCATOR_BY_NUMBER_TYPE[numberType[1].trim()] || 'page')
-			: 'page';
+		let locator = this.getLocatorFor(numberType ? numberType[1].trim() : null);
 
 		return { pageLabel, locator };
 	},
