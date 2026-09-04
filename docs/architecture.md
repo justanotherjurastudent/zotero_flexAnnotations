@@ -108,11 +108,17 @@ UTF-8 mit BOM), 57 `KnowledgeItem`.
 Ergebnis des Durchlaufs an diesem Export: 15 Print-Annotationen, 42 Zitate von Zotero
 selbst als PDF-Annotationen erledigt.
 
-**Fundstellen:** Citavi unterscheidet nur Seite und Randnummer (`<nt>Margin</nt>`).
-Einen CSL-Locator für Randnummern gibt es nicht — `paragraph` rendert „Abs.", je nach
-Zitierstil passt eher `opus` oder `column`. Beide Zuordnungen sind deshalb
-Einstellungen (`citaviLocatorPage`, `citaviLocatorMargin`); die Auswahl kommt aus
-`Zotero.Cite.labels`, derselben Liste wie im Zitationsdialog.
+**Fundstellen:** Citavi kennt fünf Seitentypen — Seite (kein `<nt>`), Spalte,
+Paragraph, Randnummer, Andere. Für jeden gibt es eine Einstellung, wohin er zitiert
+wird; die Auswahl kommt aus `Zotero.Cite.labels`, derselben Liste wie im
+Zitationsdialog. Für Randnummern gibt es in CSL keine Entsprechung: `paragraph` rendert
+„Abs.", je nach Zitierstil passt eher `opus` oder `column`.
+
+Belegt ist von den `<nt>`-Namen nur `Margin` — mehr kam im Testexport nicht vor, und
+Zoteros Übersetzer wertet `<nt>` gar nicht aus. `Column`, `Paragraph` und `Other`
+folgen Citavis Oberfläche und sind geraten. Trifft die Vermutung nicht zu, fällt der
+Wert auf „Andere" und der unbekannte Name steht im Log — er bleibt also nicht
+unbemerkt.
 
 ## Der gescheiterte erste Einhängepunkt
 

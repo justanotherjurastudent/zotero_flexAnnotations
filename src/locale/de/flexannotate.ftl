@@ -66,10 +66,17 @@ flexannotate-prefs-citavi-keep-notes-description =
     entfernt FlexAnnotate die Notiz zu genau den Zitaten, die es selbst als
     Print-Annotation übernommen hat — Notizen zu PDF-Zitaten bleiben unberührt.
 
+flexannotate-prefs-citavi-locator-heading = Fundstellen zitieren als
 flexannotate-prefs-citavi-locator-page =
-    .value = Seitenangaben zitieren als
+    .value = Seite
+flexannotate-prefs-citavi-locator-column =
+    .value = Spalte
+flexannotate-prefs-citavi-locator-paragraph =
+    .value = Paragraph
 flexannotate-prefs-citavi-locator-margin =
-    .value = Randnummern zitieren als
+    .value = Randnummer
+flexannotate-prefs-citavi-locator-other =
+    .value = Andere
 flexannotate-prefs-citavi-locator-description =
-    Citavi unterscheidet nur Seite und Randnummer. Für Randnummern kennt CSL keine
-    Entsprechung — je nach Zitierstil passt „Absatz", „Opus" oder „Spalte".
+    Links Citavis Seitentyp, rechts der Locator der Zitation. Für Randnummern kennt CSL
+    keine Entsprechung — je nach Zitierstil passt „Absatz", „Opus" oder „Spalte".

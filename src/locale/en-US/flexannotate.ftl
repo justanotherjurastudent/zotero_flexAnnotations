@@ -65,10 +65,18 @@ flexannotate-prefs-citavi-keep-notes-description =
     FlexAnnotate removes the note for exactly those quotations it turned into print
     annotations — notes for PDF quotations are left untouched.
 
+flexannotate-prefs-citavi-locator-heading = Cite locations as
 flexannotate-prefs-citavi-locator-page =
-    .value = Cite page numbers as
+    .value = Page
+flexannotate-prefs-citavi-locator-column =
+    .value = Column
+flexannotate-prefs-citavi-locator-paragraph =
+    .value = Paragraph
 flexannotate-prefs-citavi-locator-margin =
-    .value = Cite margin numbers as
+    .value = Margin number
+flexannotate-prefs-citavi-locator-other =
+    .value = Other
 flexannotate-prefs-citavi-locator-description =
-    Citavi only distinguishes pages from margin numbers. CSL has no locator for margin
-    numbers — depending on the citation style, “paragraph”, “opus” or “column” fits.
+    Citavi's page type on the left, the citation locator on the right. CSL has no locator
+    for margin numbers — depending on the citation style, “paragraph”, “opus” or
+    “column” fits.

@@ -12,8 +12,11 @@ pref("extensions.flexannotate.citaviImport", true);
 // Aus = FlexAnnotate entfernt sie, sobald es das Zitat als Annotation übernommen hat.
 pref("extensions.flexannotate.citaviKeepNotes", false);
 
-// CSL-Locator für Citavis Fundstellen. Citavi unterscheidet nur Seite und Randnummer
-// (<nt>Margin</nt>); für Randnummern gibt es in CSL keine Entsprechung, deshalb hängt
-// die sinnvolle Wahl am Zitierstil.
+// CSL-Locator je Citavi-Seitentyp (<nt> in PageRange; ohne <nt> meint Citavi eine
+// Seite). Für Randnummern gibt es in CSL keine Entsprechung, deshalb hängt die
+// sinnvolle Wahl am Zitierstil — je nach Stil passt paragraph, opus oder column.
 pref("extensions.flexannotate.citaviLocatorPage", "page");
+pref("extensions.flexannotate.citaviLocatorColumn", "column");
+pref("extensions.flexannotate.citaviLocatorParagraph", "paragraph");
 pref("extensions.flexannotate.citaviLocatorMargin", "paragraph");
+pref("extensions.flexannotate.citaviLocatorOther", "page");

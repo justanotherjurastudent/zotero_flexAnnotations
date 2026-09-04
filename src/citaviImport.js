@@ -63,18 +63,52 @@ FlexAnnotate.CitaviImport = {
 	},
 
 	/**
-	 * Citavis Nummerierungsart (`<nt>` in PageRange) auf einen CSL-Locator abbilden.
+	 * Citavis Seitentyp (`<nt>` in PageRange) auf die zuständige Einstellung abbilden.
+	 * Fehlt `<nt>`, meint Citavi eine Seite.
 	 *
-	 * Citavi kennt nur zwei Fälle: `Margin` ist eine Randnummer, alles ohne `<nt>` eine
-	 * Seite. Wohin die beiden zeigen, entscheidet der Nutzer — für Randnummern gibt es
-	 * in CSL keine passende Entsprechung, je nach Zitierstil kommen `paragraph`, `opus`
-	 * oder `column` in Frage.
+	 * Belegt ist nur `Margin` — mehr kam im Testexport nicht vor. Die übrigen Namen
+	 * folgen Citavis Oberfläche (Seite, Spalte, Paragraph, Randnummer, Andere); trifft
+	 * einer davon nicht zu, fällt der Wert auf „Andere" und steht im Log (siehe
+	 * `getLocatorFor`).
+	 */
+	LOCATOR_PREF_BY_NUMBER_TYPE: {
+		Column: 'citaviLocatorColumn',
+		Paragraph: 'citaviLocatorParagraph',
+		Margin: 'citaviLocatorMargin',
+		Other: 'citaviLocatorOther'
+	},
+
+	/** Bereits gemeldete unbekannte `<nt>`-Werte, damit das Log nicht zuläuft */
+	_unknownNumberTypes: null,
+
+	/**
+	 * Welchen CSL-Locator soll dieser Seitentyp bekommen?
 	 *
-	 * @param {String|null} numberType - Inhalt von `<nt>`, oder null
+	 * Die Zuordnung ist Sache des Nutzers: für Randnummern etwa gibt es in CSL keine
+	 * Entsprechung, je nach Zitierstil passen `paragraph`, `opus` oder `column`.
+	 *
+	 * @param {String|null} numberType - Inhalt von `<nt>`, oder null für „Seite"
 	 * @returns {String} CSL-Locator
 	 */
 	getLocatorFor(numberType) {
-		let pref = numberType === 'Margin' ? 'citaviLocatorMargin' : 'citaviLocatorPage';
+		let pref;
+		if (!numberType) {
+			pref = 'citaviLocatorPage';
+		}
+		else if (this.LOCATOR_PREF_BY_NUMBER_TYPE[numberType]) {
+			pref = this.LOCATOR_PREF_BY_NUMBER_TYPE[numberType];
+		}
+		else {
+			// Ein unbekannter Seitentyp ist der Sache nach „Andere" — aber er gehört ins
+			// Log, sonst bliebe ein falsch geratener Name für immer unbemerkt.
+			pref = 'citaviLocatorOther';
+			this._unknownNumberTypes = this._unknownNumberTypes || new Set();
+			if (!this._unknownNumberTypes.has(numberType)) {
+				this._unknownNumberTypes.add(numberType);
+				FlexAnnotate.log(`Citavi import: unknown page type <nt>${numberType}</nt>, `
+					+ "treated as 'other'");
+			}
+		}
 		return FlexAnnotate.getPref(pref) || 'page';
 	},
 

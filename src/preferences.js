@@ -10,9 +10,13 @@
 // Beim Entwickeln: Zotero lädt diese Datei ohne `ignoreCache`. Änderungen hier wirken
 // erst nach einem Start mit `-purgecaches`.
 {
+	// Ein Popup je Citavi-Seitentyp
 	let LOCATOR_POPUPS = [
 		'flexannotate-pref-citavi-locator-page-popup',
-		'flexannotate-pref-citavi-locator-margin-popup'
+		'flexannotate-pref-citavi-locator-column-popup',
+		'flexannotate-pref-citavi-locator-paragraph-popup',
+		'flexannotate-pref-citavi-locator-margin-popup',
+		'flexannotate-pref-citavi-locator-other-popup'
 	];
 
 	/**

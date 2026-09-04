@@ -53,9 +53,12 @@
 		/>
 		<description class="indented-pref" data-l10n-id="flexannotate-prefs-citavi-keep-notes-description"/>
 
-		<!-- Die menupopups füllt preferences.js aus Zotero.Cite.labels. Dass sie beim
-		     Binden noch leer sind, ist in Ordnung: preferences.js:516-534 beobachtet
-		     nachträglich eingefügte menuitems und setzt die Auswahl dann nach. -->
+		<!-- Ein Zuordnungsfeld je Citavi-Seitentyp. Die menupopups füllt preferences.js
+		     aus Zotero.Cite.labels; dass sie beim Binden noch leer sind, ist in Ordnung:
+		     preferences.js:516-534 beobachtet nachträglich eingefügte menuitems und
+		     setzt die Auswahl dann nach. -->
+		<html:h3 data-l10n-id="flexannotate-prefs-citavi-locator-heading"/>
+
 		<hbox align="center">
 			<label
 				control="flexannotate-pref-citavi-locator-page"
@@ -72,6 +75,34 @@
 
 		<hbox align="center">
 			<label
+				control="flexannotate-pref-citavi-locator-column"
+				data-l10n-id="flexannotate-prefs-citavi-locator-column"
+			/>
+			<menulist
+				id="flexannotate-pref-citavi-locator-column"
+				preference="extensions.flexannotate.citaviLocatorColumn"
+				native="true"
+			>
+				<menupopup id="flexannotate-pref-citavi-locator-column-popup"/>
+			</menulist>
+		</hbox>
+
+		<hbox align="center">
+			<label
+				control="flexannotate-pref-citavi-locator-paragraph"
+				data-l10n-id="flexannotate-prefs-citavi-locator-paragraph"
+			/>
+			<menulist
+				id="flexannotate-pref-citavi-locator-paragraph"
+				preference="extensions.flexannotate.citaviLocatorParagraph"
+				native="true"
+			>
+				<menupopup id="flexannotate-pref-citavi-locator-paragraph-popup"/>
+			</menulist>
+		</hbox>
+
+		<hbox align="center">
+			<label
 				control="flexannotate-pref-citavi-locator-margin"
 				data-l10n-id="flexannotate-prefs-citavi-locator-margin"
 			/>
@@ -81,6 +112,20 @@
 				native="true"
 			>
 				<menupopup id="flexannotate-pref-citavi-locator-margin-popup"/>
+			</menulist>
+		</hbox>
+
+		<hbox align="center">
+			<label
+				control="flexannotate-pref-citavi-locator-other"
+				data-l10n-id="flexannotate-prefs-citavi-locator-other"
+			/>
+			<menulist
+				id="flexannotate-pref-citavi-locator-other"
+				preference="extensions.flexannotate.citaviLocatorOther"
+				native="true"
+			>
+				<menupopup id="flexannotate-pref-citavi-locator-other-popup"/>
 			</menulist>
 		</hbox>
 
