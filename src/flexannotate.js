@@ -65,6 +65,29 @@ FlexAnnotate = {
 		return Zotero.Prefs.set(this.PREF_BRANCH + key, value, true);
 	},
 
+	/**
+	 * Fluent-Zeichenkette aus flexannotate.ftl für Code, der kein Dokument zur Hand hat.
+	 *
+	 * Das Hauptfenster hat die FTL über insertFTLIfNeeded() bereits am Dokument
+	 * (addToWindow), damit kennt dessen document.l10n unsere IDs. Bewusst über
+	 * formatValue() statt formatValueSync(): der asynchrone Weg steht unabhängig davon
+	 * bereit, ob das Dokument seine L10n synchron betreibt.
+	 *
+	 * @param {String} id - Fluent-ID
+	 * @param {String} fallback - Greift, solange noch kein Hauptfenster steht
+	 * @returns {Promise<String>}
+	 */
+	async getString(id, fallback) {
+		try {
+			let window = Zotero.getMainWindow();
+			return (window && await window.document.l10n.formatValue(id)) || fallback;
+		}
+		catch (e) {
+			this.logError(e);
+			return fallback;
+		}
+	},
+
 	async main() {
 		this.IntegrationPatch.patch();
 		this.CitationDialogPatch.patch();

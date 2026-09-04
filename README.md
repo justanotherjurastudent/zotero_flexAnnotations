@@ -32,6 +32,14 @@ verwirft er. FlexAnnotate legt für diese Print-Annotationen an — mit Fundstel
 Zitattyp-Farbe und Schlagwörtern. Auf Wunsch bleibt die Notiz, die Zotero zu demselben
 Zitat anlegt, erhalten.
 
+## Sprachen
+
+Die Oberfläche liegt auf **Deutsch** und **Englisch** vor. Die Sprache folgt der
+Einstellung von Zotero (*Bearbeiten → Einstellungen → Allgemein → Sprache*); für jede
+andere Sprache greift Englisch. Zotero registriert die Fluent-Dateien unter
+`src/locale/<locale>/flexannotate.ftl` selbst — eine weitere Sprache braucht nur einen
+neuen Ordner mit denselben IDs.
+
 ## Installation
 
 Fertiges XPI aus den [Releases](https://github.com/justanotherjurastudent/zotero_flexAnnotations/releases)

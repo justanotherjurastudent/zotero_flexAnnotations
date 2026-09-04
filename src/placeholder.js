@@ -10,7 +10,8 @@
  */
 FlexAnnotate.Placeholder = {
 	TAG: '#flexannotate-placeholder',
-	TITLE: 'FlexAnnotate: Print-Annotationen',
+	/** Rückfalltitel, solange die Oberfläche keine Sprache liefert */
+	TITLE: 'FlexAnnotate: Print Annotations',
 	FILENAME: 'flexannotate-placeholder.pdf',
 
 	/**
@@ -66,11 +67,15 @@ FlexAnnotate.Placeholder = {
 		let tmpPath = PathUtils.join(Zotero.getTempDirectory().path, this.FILENAME);
 		await IOUtils.write(tmpPath, this.buildPDF());
 
+		// Der Titel wird beim Anlegen festgeschrieben. Erkannt wird der Platzhalter am
+		// Tag, nicht am Titel — ein späterer Sprachwechsel lässt ältere Anhänge gültig.
+		let title = await FlexAnnotate.getString('flexannotate-placeholder-title', this.TITLE);
+
 		try {
 			let attachment = await Zotero.Attachments.importFromFile({
 				file: tmpPath,
 				parentItemID: item.id,
-				title: this.TITLE,
+				title,
 				contentType: 'application/pdf'
 			});
 			attachment.addTag(this.TAG, 1);

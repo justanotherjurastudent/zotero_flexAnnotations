@@ -1,11 +1,9 @@
 flexannotate-add-print-annotation =
     .label = Add Print Annotation…
 
-flexannotate-dialog-title =
-    .title = Print Annotation
+# Title of the placeholder attachment that carries the print annotations
+flexannotate-placeholder-title = FlexAnnotate: Print Annotations
 
-flexannotate-field-page =
-    .value = Page
 flexannotate-field-type =
     .value = Type
 flexannotate-field-color =
