@@ -1,0 +1,6 @@
+# Einheitliche Zeilenenden im Repo, unabhängig von core.autocrlf des Klons.
+# Ohne das landen je nach Rechner CRLF im Verlauf und jede Datei sieht geändert aus.
+* text=auto eol=lf
+
+# Windows PowerShell erwartet CRLF verlässlicher als LF
+*.ps1 text eol=crlf

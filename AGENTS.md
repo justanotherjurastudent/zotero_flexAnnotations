@@ -80,6 +80,9 @@ Diese Punkte sind am Quellcode verifiziert und begründen den Aufbau des Plugins
 | Eigene Skripte mit `loadSubScriptWithOptions(url, { ignoreCache: true })` laden — auf **jeder** Ebene. `loadSubScript()` bedient sich sonst aus dem Startup-Cache und liefert stillschweigend die vorige Fassung. | `xpcom/plugins.js:205-210` |
 | Fluent-Wertnachrichten (`general-yellow = Gelb`) landen über `data-l10n-id` als textContent; ein XUL-`<menuitem>` zeigt aber das `label`-Attribut. Dafür `Zotero.getString()` verwenden. | `elements/zoteroSearch.js:1269` |
 | Einstellungs-Panes brauchen ein eigenes `<linkset>` mit der Plugin-FTL, sonst bleiben alle Beschriftungen leer (`translateFragment() failed`) | `preferences/preferences.js:355`, `preferences_general.xhtml:29` |
+| `Zotero.Cite.getLocatorString()` wirft, solange `Zotero.Styles.init()` nicht durch ist: es liest `Object.keys(Zotero.Styles.locales)`, und `locales` entsteht erst am Ende der Initialisierung. Vorher `await Zotero.Styles.init()` (liefert eine laufende Initialisierung als Promise, beliebig oft aufrufbar). `Zotero.Cite.labels` ist als feste Liste unbedenklich. | `xpcom/cite.js:52-55`, `xpcom/style.js:70-77`, `139-154` |
+| `getLocatorString()` legt seine Locale-Map an, **bevor** es sie füllt — bricht das Füllen ab, liefern alle späteren Aufrufe `undefined` statt erneut zu versuchen | `xpcom/cite.js:66-67` |
+| Menulists in Einstellungs-Panes: Zotero setzt die Auswahl für nachträglich eingefügte `menuitem`s per MutationObserver nach, aber nur wenn die Pref-Bindung zu diesem Zeitpunkt schon steht. Sicherer ist, `elem.value` nach dem Füllen selbst zu setzen (löst kein `command` aus, schreibt also nichts zurück). | `preferences/preferences.js:516-539` |
 | `Zotero_File_Interface` ist **kein Singleton**: jedes Fenster, das `fileInterface.js` lädt, hat ein eigenes Objekt. Der Importassistent lädt es selbst, ein Patch am Hauptfenster erreicht ihn also nicht — und der Fehler ist stumm. | `import/importWizard.xhtml`, `fileInterface.js:179` |
 | Zoteros Citavi-Durchlauf greift den Anhang einer Quelle blind über `getAttachments()[0]`. Wer vorher einen eigenen Anhang anlegt, verschiebt ihm das Ziel. | `import/citavi.js:76-82` |
 | `annotationPageLabel` wird als `pageLabel \|\| null` gespeichert und liest sich bei leerem Wert als `null` zurück — in Logausgaben sonst als `"null"` sichtbar | `xpcom/data/item.js:2290` |
@@ -89,6 +92,8 @@ Diese Punkte sind am Quellcode verifiziert und begründen den Aufbau des Plugins
 
 - Tabs zur Einrückung, wie im Zotero-Quellcode und in `make-it-red`.
 - Kommentare und Nutzertexte auf Deutsch; Bezeichner und Log-Ausgaben auf Englisch.
+- `docs/architecture.md` ist bewusst **englisch** — technische Referenz für die
+  Zotero-Community, ohne Projekt- oder Nutzerbezug. Nicht übersetzen.
 - Lokalisierung über Fluent, `en-US` und `de` gleichzeitig pflegen.
 - Jeder Patch an einer internen Zotero-Funktion braucht Feature-Detection und muss in
   `shutdown()` zurückgenommen werden.

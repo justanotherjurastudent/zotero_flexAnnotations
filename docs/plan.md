@@ -1,5 +1,13 @@
 # Entwicklungsplan: Zotero-Plugin „FlexAnnotate" (Arbeitstitel)
 
+> **Historisches Dokument — der ursprüngliche Plan, nicht der Ist-Zustand.**
+> Geschrieben für Zotero 7 und vor der Umsetzung. Überholt sind insbesondere: der
+> npm-/TypeScript-Aufbau (das Plugin kommt ohne Abhängigkeiten aus), der Einhängepunkt
+> für Feature B (`insertAnnotations` existiert nicht, siehe `src/integrationPatch.js`),
+> der Per-Klick-Override über eine Modifier-Taste (ersetzt durch das Auswahlfeld
+> „Einfügen als" im Zitationsdialog) und der Citavi-Import, den der Plan noch nicht kennt.
+> Verbindlich sind [`architecture.md`](architecture.md) und [`../README.md`](../README.md).
+
 > Dieses Dokument dient als Arbeits- und Task-Spezifikation für einen Coding-Agenten (Codex).
 > Zielgruppe: Agent mit vollem Dateisystem-Zugriff auf dieses Repo; Zotero wird lokal installiert betrieben.
 

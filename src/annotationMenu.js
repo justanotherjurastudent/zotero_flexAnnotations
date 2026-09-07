@@ -13,7 +13,10 @@
 FlexAnnotate.AnnotationMenu = {
 	POPUP_ID: 'flexannotate-annotation-popup',
 
-	_listeners: null,
+	/** WeakMap<Window, Function> — contextmenu-Listener je Fenster */
+	_listeners: new WeakMap(),
+	/** Annotation, auf der das Menü zuletzt geöffnet wurde */
+	_current: null,
 
 	/**
 	 * @param {Window} window - Zotero-Hauptfenster
@@ -63,8 +66,6 @@ FlexAnnotate.AnnotationMenu = {
 			}
 		};
 		doc.addEventListener('contextmenu', onContextMenu, true);
-
-		this._listeners = this._listeners || new WeakMap();
 		this._listeners.set(window, onContextMenu);
 	},
 
@@ -72,7 +73,7 @@ FlexAnnotate.AnnotationMenu = {
 	 * @param {Window} window
 	 */
 	removeFromWindow(window) {
-		let listener = this._listeners?.get(window);
+		let listener = this._listeners.get(window);
 		if (listener) {
 			window.document.removeEventListener('contextmenu', listener, true);
 			this._listeners.delete(window);

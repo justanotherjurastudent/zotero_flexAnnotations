@@ -15,7 +15,7 @@ async function startup({ id, version, rootURI }) {
 	// darf nicht den ganzen Start abbrechen und damit Feature A und B mitnehmen.
 	try {
 		await Zotero.PreferencePanes.register({
-			pluginID: 'flexannotate@justanotherjurastudent.github.io',
+			pluginID: id,
 			src: rootURI + 'preferences.xhtml',
 			scripts: [rootURI + 'preferences.js'],
 			label: 'FlexAnnotate'
@@ -27,8 +27,8 @@ async function startup({ id, version, rootURI }) {
 
 	// ignoreCache wie bei Zoteros eigenem Laden von bootstrap.js (plugins.js:205-210).
 	// Ohne das liefert der Startup-Cache beim Entwickeln weiter die alte Fassung, solange
-	// Zotero nicht mit -purgecaches startet. bootstrap.js selbst laedt Zotero bereits so;
-	// ab hier muessen wir es fuer jede eigene Datei selbst tun.
+	// Zotero nicht mit -purgecaches startet. bootstrap.js selbst lädt Zotero bereits so;
+	// ab hier muss es jede eigene Datei selbst tun.
 	Services.scriptloader.loadSubScriptWithOptions(rootURI + 'flexannotate.js', {
 		ignoreCache: true
 	});

@@ -10,13 +10,13 @@
 // Beim Entwickeln: Zotero lädt diese Datei ohne `ignoreCache`. Änderungen hier wirken
 // erst nach einem Start mit `-purgecaches`.
 {
-	// Ein Popup je Citavi-Seitentyp
-	let LOCATOR_POPUPS = [
-		'flexannotate-pref-citavi-locator-page-popup',
-		'flexannotate-pref-citavi-locator-column-popup',
-		'flexannotate-pref-citavi-locator-paragraph-popup',
-		'flexannotate-pref-citavi-locator-margin-popup',
-		'flexannotate-pref-citavi-locator-other-popup'
+	// Ein Auswahlfeld je Citavi-Seitentyp; das <menupopup> darin wird hier gefüllt
+	let LOCATOR_MENULISTS = [
+		'flexannotate-pref-citavi-locator-page',
+		'flexannotate-pref-citavi-locator-column',
+		'flexannotate-pref-citavi-locator-paragraph',
+		'flexannotate-pref-citavi-locator-margin',
+		'flexannotate-pref-citavi-locator-other'
 	];
 
 	/**
@@ -24,35 +24,78 @@
 	 * alphabetisch sortiert — dieselbe Liste wie im Zitationsdialog und in der
 	 * Eingabemaske für Print-Annotationen.
 	 *
-	 * @param {Element} popup
+	 * Der Rückfall auf den technischen Namen fängt einen halb gefüllten Zwischenspeicher
+	 * ab: getLocatorString() legt seine Map für das Locale an, *bevor* es sie füllt
+	 * (cite.js:66-67). Bricht das Füllen ab, liefern spätere Aufrufe `undefined` — ohne
+	 * Rückfall würde das Sortieren daran scheitern und gar kein Eintrag entstehen.
+	 *
+	 * @returns {Array<{ value: String, label: String }>}
 	 */
-	let fillLocatorMenu = (popup) => {
-		if (popup.childElementCount) {
-			return;
-		}
+	let getLocatorOptions = () => {
 		let locators = Zotero.Cite.labels.map(locator => ({
 			value: locator,
-			label: Zotero.Cite.getLocatorString(locator)
+			label: Zotero.Cite.getLocatorString(locator) || locator
 		}));
 		locators.sort((a, b) => a.label.localeCompare(b.label));
-
-		for (let { value, label } of locators) {
-			let menuitem = popup.ownerDocument.createXULElement('menuitem');
-			menuitem.setAttribute('value', value);
-			menuitem.setAttribute('label', label);
-			popup.appendChild(menuitem);
-		}
+		return locators;
 	};
 
-	document.addEventListener('load', (event) => {
-		if (!event.target?.querySelector) {
+	/**
+	 * Füllt alle noch leeren Auswahlfelder in einem Durchgang.
+	 *
+	 * Heikel: getLocatorString() liest Object.keys(Zotero.Styles.locales) (cite.js:52-55).
+	 * Solange Zotero.Styles.init() nicht durch ist, ist `locales` undefined und der Aufruf
+	 * wirft — direkt nach einem Zotero-Start blieben die Felder deshalb leer und füllten
+	 * sich erst beim zweiten Öffnen des Fensters. init() liefert eine bereits laufende
+	 * Initialisierung als Promise zurück (style.js:70-77), ist also beliebig oft erlaubt.
+	 *
+	 * Die Auswahl wird anschließend selbst gesetzt, statt sie Zoteros MutationObserver zu
+	 * überlassen (preferences.js:516-539): der greift nur, wenn die Bindung zum Zeitpunkt
+	 * des Einfügens schon steht. Ein `value` von Hand zu setzen löst kein `command`-
+	 * Ereignis aus und schreibt damit auch nichts in die Einstellungen zurück.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	let fillLocatorMenus = async () => {
+		let open = LOCATOR_MENULISTS
+			.map(id => document.getElementById(id)?.querySelector('menupopup'))
+			.filter(popup => popup && !popup.childElementCount);
+		if (!open.length) {
 			return;
 		}
-		for (let id of LOCATOR_POPUPS) {
-			let popup = event.target.querySelector('#' + id);
-			if (popup) {
-				fillLocatorMenu(popup);
+
+		await Zotero.Styles.init();
+		let options = getLocatorOptions();
+
+		for (let popup of open) {
+			// Ein zweiter Durchgang könnte währenddessen zugeschlagen haben
+			if (popup.childElementCount) {
+				continue;
+			}
+			for (let { value, label } of options) {
+				let menuitem = popup.ownerDocument.createXULElement('menuitem');
+				menuitem.setAttribute('value', value);
+				menuitem.setAttribute('label', label);
+				popup.appendChild(menuitem);
+			}
+			let menulist = popup.closest('menulist');
+			let pref = menulist?.getAttribute('preference');
+			if (pref) {
+				menulist.value = Zotero.Prefs.get(pref, true);
 			}
 		}
+
+		Zotero.debug(`FlexAnnotate: filled ${open.length} locator menu(s) with `
+			+ `${options.length} entries each`);
+	};
+
+	// Jedes Panel im Fenster meldet sein `load` — auch fremde. Unsere Felder stehen erst
+	// beim Laden des eigenen Panels im Dokument, deshalb wird jedes Mal nachgesehen statt
+	// nur einmal. Die Durchgänge laufen nacheinander, damit sich zwei nicht überholen.
+	let queue = Promise.resolve();
+	document.addEventListener('load', () => {
+		queue = queue
+			.then(fillLocatorMenus)
+			.catch(e => Zotero.logError(e));
 	}, true);
 }

@@ -5,6 +5,9 @@ FlexAnnotate = {
 	initialized: false,
 	addedElementIDs: [],
 
+	/** WeakMap<Window, Function> — popupshowing-Listener je Fenster */
+	_menuListeners: new WeakMap(),
+
 	PREF_BRANCH: 'extensions.flexannotate.',
 
 	init({ id, version, rootURI }) {
@@ -98,14 +101,28 @@ FlexAnnotate = {
 	// Fensterintegration
 	//
 
+	/**
+	 * Baut die Oberfläche in ein Hauptfenster. Mehrfach aufrufbar: startup() geht alle
+	 * offenen Fenster durch, onMainWindowLoad() kommt für jedes neue dazu.
+	 *
+	 * @param {Window} window
+	 */
 	addToWindow(window) {
 		let doc = window.document;
 
 		window.MozXULElement.insertFTLIfNeeded("flexannotate.ftl");
 
+		// Zuerst, weil beides eigene Wiederholungssperren hat und nicht davon abhängen
+		// darf, ob das Item-Kontextmenü in diesem Fenster existiert
+		this.AnnotationMenu.addToWindow(window);
+		this.CitaviImport.addToWindow(window);
+
 		let itemMenu = doc.getElementById('zotero-itemmenu');
 		if (!itemMenu) {
 			this.log("Item context menu not found; skipping menu integration");
+			return;
+		}
+		if (doc.getElementById('flexannotate-itemmenu-separator')) {
 			return;
 		}
 
@@ -114,56 +131,51 @@ FlexAnnotate = {
 		itemMenu.appendChild(separator);
 		this.storeAddedElement(separator);
 
-		let addItem = doc.createXULElement('menuitem');
-		addItem.id = 'flexannotate-add-print-annotation';
-		addItem.classList.add('menuitem-iconic');
-		addItem.setAttribute('data-l10n-id', 'flexannotate-add-print-annotation');
-		addItem.addEventListener('command', () => {
-			this.openPrintAnnotationDialog(window).catch(e => this.logError(e));
-		});
-		itemMenu.appendChild(addItem);
-		this.storeAddedElement(addItem);
+		this.addMenuItem(itemMenu, 'flexannotate-add-print-annotation',
+			'flexannotate-add-print-annotation',
+			() => this.openPrintAnnotationDialog(window));
 
-		// Im Item-Baum werden Print-Annotationen als eigene Zeilen unter dem Platzhalter
-		// angezeigt; dort greift Zoteros eigenes Kontextmenü, nicht das an den
-		// annotation-row-Elementen des rechten Bereichs. Also auch hier anbieten.
-		let editItem = doc.createXULElement('menuitem');
-		editItem.id = 'flexannotate-itemmenu-edit';
-		editItem.classList.add('menuitem-iconic');
-		editItem.setAttribute('data-l10n-id', 'flexannotate-annotation-edit');
-		editItem.addEventListener('command', () => {
-			let annotation = this.getSelectedPrintAnnotation(window);
-			if (annotation) {
-				this.Dialog.openForEdit(window, annotation).catch(e => this.logError(e));
-			}
-		});
-		itemMenu.appendChild(editItem);
-		this.storeAddedElement(editItem);
+		// Im Item-Baum erscheinen Print-Annotationen als eigene Zeilen unter dem
+		// Platzhalter. Dort greift Zoteros Kontextmenü, nicht das an den
+		// annotation-row-Elementen des rechten Bereichs (AnnotationMenu) — deshalb
+		// stehen Bearbeiten und Löschen an beiden Stellen.
+		this.addMenuItem(itemMenu, 'flexannotate-itemmenu-edit', 'flexannotate-annotation-edit',
+			() => {
+				let annotation = this.getSelectedPrintAnnotation(window);
+				return annotation && this.Dialog.openForEdit(window, annotation);
+			});
 
-		let deleteItem = doc.createXULElement('menuitem');
-		deleteItem.id = 'flexannotate-itemmenu-delete';
-		deleteItem.classList.add('menuitem-iconic');
-		deleteItem.setAttribute('data-l10n-id', 'flexannotate-annotation-delete');
-		deleteItem.addEventListener('command', () => {
-			let annotation = this.getSelectedPrintAnnotation(window);
-			if (annotation) {
-				this.PrintAnnotations.erase(annotation).catch(e => this.logError(e));
-			}
-		});
-		itemMenu.appendChild(deleteItem);
-		this.storeAddedElement(deleteItem);
+		this.addMenuItem(itemMenu, 'flexannotate-itemmenu-delete', 'flexannotate-annotation-delete',
+			() => {
+				let annotation = this.getSelectedPrintAnnotation(window);
+				return annotation && this.PrintAnnotations.erase(annotation);
+			});
 
 		// buildItemContextMenu() räumt nur seine eigenen Einträge auf (zoteroPane.js:4170),
 		// angehängte Plugin-Einträge bleiben bestehen. Sichtbarkeit steuern wir selbst.
 		let onPopupShowing = () => this.updateMenuState(window);
 		itemMenu.addEventListener('popupshowing', onPopupShowing);
-		this._menuListeners = this._menuListeners || new WeakMap();
 		this._menuListeners.set(window, onPopupShowing);
 
-		this.AnnotationMenu.addToWindow(window);
-		this.CitaviImport.addToWindow(window);
-
 		this.log("Added item menu entry and annotation context menu to window");
+	},
+
+	/**
+	 * @param {Element} menu - Zielmenü
+	 * @param {String} id - Element-ID, zugleich Schlüssel für removeFromWindow()
+	 * @param {String} l10nID - Fluent-ID der Beschriftung
+	 * @param {Function} onCommand - darf ein Promise liefern; Fehler landen im Log
+	 */
+	addMenuItem(menu, id, l10nID, onCommand) {
+		let menuitem = menu.ownerDocument.createXULElement('menuitem');
+		menuitem.id = id;
+		menuitem.classList.add('menuitem-iconic');
+		menuitem.setAttribute('data-l10n-id', l10nID);
+		menuitem.addEventListener('command', () => {
+			Promise.resolve(onCommand()).catch(e => this.logError(e));
+		});
+		menu.appendChild(menuitem);
+		this.storeAddedElement(menuitem);
 	},
 
 	updateMenuState(window) {
@@ -228,11 +240,19 @@ FlexAnnotate = {
 		}
 	},
 
+	/**
+	 * Merkt die ID zum Aufräumen vor. Dieselbe ID kommt in jedem Fenster einmal vor,
+	 * gespeichert wird sie nur einmal — removeFromWindow() räumt je Dokument auf.
+	 *
+	 * @param {Element} elem
+	 */
 	storeAddedElement(elem) {
 		if (!elem.id) {
 			throw new Error("Element must have an id");
 		}
-		this.addedElementIDs.push(elem.id);
+		if (!this.addedElementIDs.includes(elem.id)) {
+			this.addedElementIDs.push(elem.id);
+		}
 	},
 
 	removeFromWindow(window) {
@@ -248,7 +268,7 @@ FlexAnnotate = {
 		}
 
 		let itemMenu = doc.getElementById('zotero-itemmenu');
-		let listener = this._menuListeners?.get(window);
+		let listener = this._menuListeners.get(window);
 		if (itemMenu && listener) {
 			itemMenu.removeEventListener('popupshowing', listener);
 			this._menuListeners.delete(window);

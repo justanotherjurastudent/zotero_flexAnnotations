@@ -33,6 +33,7 @@ FlexAnnotate.Dialog = {
 		this._annotation = null;
 
 		let doc = window.document;
+		await this.ensureLocatorsReady();
 		let panel = this.build(window);
 
 		this.fill(doc, {
@@ -63,6 +64,7 @@ FlexAnnotate.Dialog = {
 		this._item = annotation.topLevelItem;
 
 		let doc = window.document;
+		await this.ensureLocatorsReady();
 		let panel = this.build(window);
 
 		this.fill(doc, {
@@ -183,6 +185,24 @@ FlexAnnotate.Dialog = {
 		});
 
 		return panel;
+	},
+
+	/**
+	 * Muss vor build() laufen.
+	 *
+	 * getLocatorString() liest Object.keys(Zotero.Styles.locales) (cite.js:52-55). Vor dem
+	 * Ende von Zotero.Styles.init() ist `locales` undefined, der Aufruf wirft, und weil
+	 * build() das Panel da schon eingehängt hat, bliebe die Locator-Liste bis zum nächsten
+	 * Zotero-Start leer — build() liefert beim zweiten Aufruf das bestehende Panel zurück.
+	 * Deshalb wird gewartet, statt den Fehler abzufangen.
+	 *
+	 * init() gibt eine bereits laufende Initialisierung als Promise zurück
+	 * (style.js:70-77) und ist damit beliebig oft aufrufbar.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async ensureLocatorsReady() {
+		await Zotero.Styles.init();
 	},
 
 	/**

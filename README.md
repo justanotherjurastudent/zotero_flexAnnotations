@@ -5,6 +5,33 @@ Datei, Nur-Nachweis-Zitieren und der Citavi-Import von Zitaten ohne Anhang.
 
 Entwickelt und geprüft gegen **Zotero 10.0.1**.
 
+## Wozu
+
+Zotero speichert Textstellen als Annotationen nur, wenn ein Dateianhang vorliegt — ein
+PDF, EPUB oder HTML-Snapshot. Eine Annotation ohne Datei-Elternteil lässt sich technisch
+nicht anlegen. Für Fächer, die überwiegend mit gedruckten Quellen arbeiten, entfällt
+damit ein zentraler Arbeitsschritt. Der Standardfall in den Rechtswissenschaften ist der
+Kommentar oder das Lehrbuch, das es als Buch gibt und nicht als PDF; zitiert wird nach
+Randnummer, Paragraph, Spalte oder Seite. Wer daraus zitiert, kann die Stelle nur als
+formlose Notiz ablegen: Sie erscheint nicht im Annotations-Tab und steht beim Zitieren in
+Word oder LibreOffice nicht als Textstelle zur Auswahl. Die Fundstelle wird bei jedem
+Beleg neu eingetippt.
+
+Hinzu kommen zwei Punkte. Beim Einfügen einer Annotation schreibt Zotero stets den
+Zitattext samt Anführungszeichen mit — für einen reinen Fußnotennachweis („Autor, Werk,
+Rn. 12") zu viel, und das nachträgliche Löschen beschädigt leicht das Zotero-Feld. Und
+Zoteros Citavi-Importer übernimmt nur Zitate, die an einer PDF-Stelle verankert sind;
+alle übrigen verwirft er ersatzlos — bei einem Testexport 15 von 57 Zitaten.
+
+Das Plugin schließt diese drei Lücken:
+
+- Annotationen für Quellen ohne Datei, mit frei wählbarem Locator-Typ
+- Zitieren wahlweise nur mit Fundstelle, ohne Zitattext
+- Citavi-Import auch der nicht verankerten Zitate
+
+Gedacht für Jura, Geschichte, Theologie, Philologien und Altertumswissenschaften — und
+für Umsteiger von Citavi.
+
 ## Funktionen
 
 ### Print-Annotationen
@@ -31,6 +58,24 @@ Zoteros Citavi-Import übernimmt nur Zitate, die an einer PDF-Stelle hängen; al
 verwirft er. FlexAnnotate legt für diese Print-Annotationen an — mit Fundstelle,
 Zitattyp-Farbe und Schlagwörtern. Auf Wunsch bleibt die Notiz, die Zotero zu demselben
 Zitat anlegt, erhalten.
+
+## Plattformen
+
+Überall dort, wo Zotero 7 oder 10 läuft: **Windows, macOS** (Intel und Apple Silicon)
+**und Linux**. Das Plugin besteht ausschließlich aus JavaScript und XUL, enthält keinen
+plattformabhängigen Code und legt Dateien nur über Zoteros eigene Wege an
+(`Zotero.getTempDirectory()`, `PathUtils.join()`).
+
+Zwei Einschränkungen kommen nicht vom Plugin, sondern von Zotero:
+
+- **Zotero für iOS und Android** kennt überhaupt keine Plugins. Die Print-Annotationen
+  synchronisieren dorthin trotzdem — sie sind gewöhnliche Zotero-Annotationen; nur
+  Anlegen und Bearbeiten geht dort nicht.
+- **Nur-Nachweis-Zitieren** setzt eines der Textverarbeitungs-Plugins voraus: Word gibt
+  es für Windows und macOS, LibreOffice für alle drei Systeme.
+
+Nur die Skripte unter `tools/` sind PowerShell — sie werden zum Bauen gebraucht, nicht
+zum Benutzen.
 
 ## Sprachen
 
@@ -77,7 +122,8 @@ powershell -File tools/install-dev.ps1 -Remove
 Kein npm, kein TypeScript — das Plugin folgt dem offiziellen Beispiel
 `zotero/make-it-red` und kommt ohne Abhängigkeiten aus.
 
-- [`docs/architecture.md`](docs/architecture.md) — Aufbau und die heiklen Stellen
+- [`docs/architecture.md`](docs/architecture.md) — technische Referenz: Aufbau,
+  Ablauflogik, Datenmodell und die heiklen Stellen in Zoteros Interna (englisch)
 - [`AGENTS.md`](AGENTS.md) — Arbeitsregeln und belegte Befunde zur Zotero-API
 - [`docs/plan.md`](docs/plan.md) — ursprüngliche Spezifikation
 
@@ -98,6 +144,7 @@ Das Plugin patcht interne Zotero-Funktionen. Jeder Patch prüft vorher, ob es se
 gibt, und danach, ob er wirklich sitzt. Schlägt einer fehl, deaktiviert sich die
 betroffene Funktion still und schreibt eine Warnung ins Debug-Log — die übrigen
 Funktionen und Zotero selbst bleiben unberührt.
+
 ## Lizenz
 
 [AGPL-3.0-or-later](LICENSE) — dieselbe Lizenz wie Zotero selbst.

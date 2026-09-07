@@ -40,6 +40,7 @@ FlexAnnotate.PrintAnnotations = {
 	async create(item, data) {
 		let attachment = await FlexAnnotate.Placeholder.ensure(item);
 		let type = data.type || 'highlight';
+		let comment = data.comment || '';
 
 		let annotation = new Zotero.Item('annotation');
 		annotation.libraryID = attachment.libraryID;
@@ -51,14 +52,12 @@ FlexAnnotate.PrintAnnotations = {
 			annotation.annotationText = data.text || '';
 		}
 		else if (data.text) {
-			// Bei 'note' kennt Zotero kein Zitatfeld: Text wandert in den Kommentar,
-			// damit nichts stillschweigend verloren geht.
-			data = Object.assign({}, data, {
-				comment: [data.text, data.comment].filter(Boolean).join('\n\n')
-			});
+			// Bei 'note' kennt Zotero kein Zitatfeld (item.js:4507): der Text wandert in
+			// den Kommentar, statt stillschweigend verloren zu gehen.
+			comment = [data.text, comment].filter(Boolean).join('\n\n');
 		}
 
-		annotation.annotationComment = data.comment || '';
+		annotation.annotationComment = comment;
 		annotation.annotationColor = this.normalizeColor(data.color);
 		annotation.annotationPageLabel = String(data.pageLabel ?? '').trim();
 		annotation.annotationSortIndex = this.buildSortIndex(data.pageLabel);

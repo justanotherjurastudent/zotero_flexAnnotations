@@ -54,9 +54,9 @@
 		<description class="indented-pref" data-l10n-id="flexannotate-prefs-citavi-keep-notes-description"/>
 
 		<!-- Ein Zuordnungsfeld je Citavi-Seitentyp. Die menupopups füllt preferences.js
-		     aus Zotero.Cite.labels; dass sie beim Binden noch leer sind, ist in Ordnung:
-		     preferences.js:516-534 beobachtet nachträglich eingefügte menuitems und
-		     setzt die Auswahl dann nach. -->
+		     aus Zotero.Cite.labels und setzt die Auswahl anschließend selbst. Sie beim
+		     Binden leer zu lassen ist also in Ordnung — auf Zoteros MutationObserver
+		     (preferences.js:516-539) verlassen wir uns dabei bewusst nicht. -->
 		<html:h3 data-l10n-id="flexannotate-prefs-citavi-locator-heading"/>
 
 		<hbox align="center">

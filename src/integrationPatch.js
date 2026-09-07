@@ -17,16 +17,13 @@
  * Item und `annotationPageLabel` als Locator. Beide Pfade sind unveränderte Zotero-Logik;
  * wir tauschen nur, welcher genommen wird.
  *
- * Der Plan sah `Zotero.Integration.Session.prototype.insertAnnotations` vor — diese
- * Methode existiert in Zotero 10 nicht (mehr); `insertAnnotations` liegt dort nur auf
- * `Zotero.EditorInstance` (Notiz-Editor, editorInstance.js:392).
+ * `Zotero.Integration.Session.prototype.insertAnnotations` ist kein Angriffspunkt: die
+ * Methode gibt es dort nicht, `insertAnnotations` liegt nur auf `Zotero.EditorInstance`
+ * (Notiz-Editor, editorInstance.js:392).
  */
 FlexAnnotate.IntegrationPatch = {
 	_original: null,
 	_patched: false,
-
-	/** Setzt der Nutzer beim Auslösen einen Modifier, gilt für diesen einen Aufruf das Gegenteil. */
-	_overrideOnce: null,
 
 	/**
 	 * Wendet den Patch an, sofern der Zielpfad vorhanden ist (Feature-Detection statt
@@ -59,7 +56,7 @@ FlexAnnotate.IntegrationPatch = {
 
 		let patched = async function (fieldIndex, field, citation) {
 			try {
-				if (self.isCitationOnlyMode()) {
+				if (FlexAnnotate.getPref('citationOnly')) {
 					let rewritten = await self.rewriteToCitationOnly(citation);
 					if (rewritten) {
 						return [await this._insertItemsIntoDocument(fieldIndex, field, rewritten)];
@@ -69,9 +66,6 @@ FlexAnnotate.IntegrationPatch = {
 			catch (e) {
 				// Nie den Einfügevorgang scheitern lassen: im Zweifel nativ weitermachen.
 				FlexAnnotate.logError(e);
-			}
-			finally {
-				self._overrideOnce = null;
 			}
 
 			return self._original.call(this, fieldIndex, field, citation);
@@ -106,21 +100,6 @@ FlexAnnotate.IntegrationPatch = {
 		this._original = null;
 		this._patched = false;
 		FlexAnnotate.log("Removed _insertCitingResult patch");
-	},
-
-	/**
-	 * Voreinstellung plus einmaliger Override (Modifier-Taste).
-	 *
-	 * @returns {Boolean}
-	 */
-	isCitationOnlyMode() {
-		let base = !!FlexAnnotate.getPref('citationOnly');
-		return this._overrideOnce === null ? base : !base;
-	},
-
-	/** Invertiert den Modus für den nächsten Einfügevorgang. */
-	setOverrideOnce() {
-		this._overrideOnce = true;
 	},
 
 	/**

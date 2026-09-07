@@ -15,12 +15,10 @@
  *
  * ## Warum zwei Einhängepunkte
  *
- * Naheliegend wäre, `ImportCitaviAnnotatons` im Modul `zotero/import/citavi` zu
- * ersetzen — fileInterface.js:686 liest die Eigenschaft erst zum Aufrufzeitpunkt. Das
- * ist gescheitert: `require.js` lädt CommonJS-Module in eine eigene Sandbox, deren
- * `exports` von außen nicht beschreibbar ist (siehe docs/architecture.md).
- *
- * Stattdessen zwei gewöhnliche, beschreibbare Objekte:
+ * `ImportCitaviAnnotatons` im Modul `zotero/import/citavi` zu ersetzen scheidet aus:
+ * `require.js` lädt CommonJS-Module in eine eigene Sandbox, deren `exports` von außen
+ * nicht beschreibbar ist (docs/architecture.md). Stattdessen zwei gewöhnliche,
+ * beschreibbare Objekte:
  *
  * 1. `Zotero.Translate.Import.prototype.translate` — sagt uns, dass gerade ein
  *    Citavi-Export eingelesen wurde, und hält das Translation-Objekt fest. Daran hängt
@@ -45,7 +43,7 @@ FlexAnnotate.CitaviImport = {
 	/** { proto, original } des globalen translate()-Patches */
 	_translatePatch: null,
 	/** WeakMap<Window, Array<{ target, name, original }>> */
-	_windowPatches: null,
+	_windowPatches: new WeakMap(),
 	/** Translation-Objekt eines Citavi-Imports, dessen Durchlauf noch aussteht */
 	_pending: null,
 	/** true, sobald mindestens ein Fenster den Durchlauf richtig einreiht */
@@ -77,7 +75,10 @@ FlexAnnotate.CitaviImport = {
 	},
 
 	/** Bereits gemeldete unbekannte `<nt>`-Werte, damit das Log nicht zuläuft */
-	_unknownNumberTypes: null,
+	_unknownNumberTypes: new Set(),
+
+	/** Höchstlänge des Rests hinter dem Zitat, damit er noch die Fundstelle sein kann */
+	MAX_NOTE_TAIL: 60,
 
 	/**
 	 * Welchen CSL-Locator soll dieser Seitentyp bekommen?
@@ -100,7 +101,6 @@ FlexAnnotate.CitaviImport = {
 			// Ein unbekannter Seitentyp ist der Sache nach „Andere" — aber er gehört ins
 			// Log, sonst bliebe ein falsch geratener Name für immer unbemerkt.
 			pref = 'citaviLocatorOther';
-			this._unknownNumberTypes = this._unknownNumberTypes || new Set();
 			if (!this._unknownNumberTypes.has(numberType)) {
 				this._unknownNumberTypes.add(numberType);
 				FlexAnnotate.log(`Citavi import: unknown page type <nt>${numberType}</nt>, `
@@ -182,9 +182,8 @@ FlexAnnotate.CitaviImport = {
 				return;
 			}
 			if (this._pending) {
-				// Genau so ist der Durchlauf einmal verschwunden: der Importassistent
-				// hat sein eigenes Zotero_File_Interface, unser Wrapper saß nur am
-				// Hauptfenster — vorgemerkt, aber nie ausgelöst.
+				// Eine Vormerkung, die niemand eingelöst hat: der Aufrufweg dieses
+				// Imports geht an keinem gepatchten Zotero_File_Interface vorbei.
 				Zotero.warn("FlexAnnotate: a queued Citavi pass was never triggered — "
 					+ "der Aufrufweg dieses Imports ist nicht eingereiht.");
 			}
@@ -293,7 +292,7 @@ FlexAnnotate.CitaviImport = {
 	 * @param {Window} window
 	 */
 	addToWindow(window) {
-		if (this._windowPatches?.has(window)) {
+		if (this._windowPatches.has(window)) {
 			return;
 		}
 
@@ -336,7 +335,6 @@ FlexAnnotate.CitaviImport = {
 			return;
 		}
 
-		this._windowPatches = this._windowPatches || new WeakMap();
 		this._windowPatches.set(window, patches);
 		this._sequenced = true;
 		FlexAnnotate.log(`Sequenced Citavi pass after ${patches.map(p => p.name).join(', ')}`
@@ -347,7 +345,7 @@ FlexAnnotate.CitaviImport = {
 	 * @param {Window} window
 	 */
 	removeFromWindow(window) {
-		let patches = this._windowPatches?.get(window);
+		let patches = this._windowPatches.get(window);
 		if (!patches) {
 			return;
 		}
@@ -481,8 +479,8 @@ FlexAnnotate.CitaviImport = {
 	 * 3. Was danach noch folgt, kann nur die Fundstelle sein (siehe `isPageTail`).
 	 *
 	 * Bedingung 3 ist der eigentliche Schutz: ohne sie würde eine längere Notiz, die
-	 * zufällig mit demselben Satz beginnt, mitgelöscht. Sie trägt auch bei sehr kurzen
-	 * Zitaten — „Hallo" genügt, solange dahinter nichts als eine Zahl steht.
+	 * zufällig mit demselben Satz beginnt, mitgelöscht. Sie trägt unabhängig von der
+	 * Länge des Zitats, greift also auch bei einem Einwortzitat.
 	 *
 	 * @param {Zotero.Item} item - die Quelle
 	 * @param {Element} node - <KnowledgeItem>
@@ -518,19 +516,12 @@ FlexAnnotate.CitaviImport = {
 	 * (`extractPages()`, `Citavi 5 XML.js`) — ein Rest mit Buchstaben kann also nicht von
 	 * ihm stammen und gehört zu einer fremden Notiz.
 	 *
-	 * Das ersetzt eine frühere Mindestlänge für das Zitat. Die hat Notizen wie „Hallo"
-	 * verschont, obwohl sie sehr wohl vom Import stammten — der Rest hinter dem Zitat
-	 * unterscheidet zuverlässiger als die Länge des Zitats.
-	 *
 	 * @param {String} tail
 	 * @returns {Boolean}
 	 */
 	isPageTail(tail) {
 		return tail.length <= this.MAX_NOTE_TAIL && /^[\s\d–-]*$/.test(tail);
 	},
-
-	/** Was hinter dem Zitat noch stehen darf, damit es die Fundstelle sein kann */
-	MAX_NOTE_TAIL: 60,
 
 	/**
 	 * @param {String} html
