@@ -74,7 +74,8 @@ Diese Punkte sind am Quellcode verifiziert und begründen den Aufbau des Plugins
 | `buildItemContextMenu` entfernt nur eigene Einträge, angehängte Plugin-Einträge bleiben | `zoteroPane.js:4170-4173` |
 | Farbpalette als `[l10n-Key, Hex]`-Paare | `xpcom/annotations.js` (`Zotero.Annotations.COLORS`) |
 | **`strict_max_version` ist auf Zotero 10 Pflicht.** Fehlt es im Manifest, wird das Plugin beim Parsen verworfen — es taucht nicht einmal in `extensions.json` auf und es erscheint keine Fehlermeldung. Experimentell belegt: von fünf sonst identischen Test-Plugins lud nur das mit `strict_max_version`. | Empirisch, Zotero 10.0.1 |
-| **Nach jedem Patch an einem fremden Objekt zurücklesen und vergleichen.** Zuweisungen können lautlos verpuffen — eingefrorene Objekte oder Xray-Wrapper — und unser Code läuft nicht im strict mode, wirft also nicht. Ein wirkungsloser Patch sieht sonst genau wie ein erfolgreicher aus. | Belegt am Citavi-Modul, siehe `docs/architecture.md` |
+| **Jeden Patch an einem fremden Objekt in `try`/`catch` setzen und danach zurücklesen.** Unter `"use strict"` wirft ein nicht schreibbares Ziel und reißt die übrigen Patches mit; ein Xray-Expando schluckt die Zuweisung dagegen ohne Fehler. Beides sieht sonst wie ein gelungener Patch aus. Dafür gibt es `FlexAnnotate.assignChecked()`. | Belegt am Citavi-Modul, siehe `docs/architecture.md` |
+| **Der Plugin-Scope ist global, Fenster sind es nicht.** Modulobjekte existieren einmal je Sitzung, die Elemente daran je Dokument. Was zu einer Interaktion gehört (angeklickte Annotation, Bearbeiten/Anlegen), gehört ans Element — Expando am Panel, Attribut am Popup —, nicht ans Modulobjekt; sonst schreibt der Klick im einen Fenster auf den Datensatz des anderen, ohne Fehler. Fensterweise Buchführung in eine `WeakMap`. Ein Flag „mindestens ein Fenster ist eingerichtet" rastet ein: stattdessen die Fenster sammeln und auf leer prüfen. | Belegt an `Dialog`, `AnnotationMenu`, `CitaviImport` |
 | CommonJS-Module aus `require()` liegen in einer eigenen Loader-Sandbox und ihr `exports` ist eingefroren: weder direkt noch über `wrappedJSObject` oder `Cu.waiveXrays()` beschreibbar. Solche Module sind als Patch-Ziel ungeeignet. | `resource://zotero/require.js`, `resource://zotero/loader.sys.mjs` |
 | XUL-Elemente werden nur in privilegierten chrome-Dokumenten geparst. Ein Plugin kann kein `chrome.manifest` registrieren, `openDialog()` mit `file://`- oder `jar:`-URL ergibt ein leeres Fenster. Oberfläche stattdessen mit `MozXULElement.parseXULToFragment()` im Hauptfenster bauen. | wie Zotero selbst in `elements/*.js` |
 | Eigene Skripte mit `loadSubScriptWithOptions(url, { ignoreCache: true })` laden — auf **jeder** Ebene. `loadSubScript()` bedient sich sonst aus dem Startup-Cache und liefert stillschweigend die vorige Fassung. | `xpcom/plugins.js:205-210` |
@@ -90,7 +91,10 @@ Diese Punkte sind am Quellcode verifiziert und begründen den Aufbau des Plugins
 
 ## Konventionen
 
-- Tabs zur Einrückung, wie im Zotero-Quellcode und in `make-it-red`.
+- Zoteros [Coding Guidelines](https://www.zotero.org/support/dev/client_coding/coding_guidelines) gelten:
+  Tabs (Breite 4), Zeilen bis 100 Zeichen, `"use strict";` als erste Zeile jeder JS-Datei, Klammern auch um
+  einzeilige Blöcke, JSDoc mit `@param`/`@return`, private Member mit `_`-Präfix, `throw new Error()` statt
+  Strings.
 - Kommentare und Nutzertexte auf Deutsch; Bezeichner und Log-Ausgaben auf Englisch.
 - `docs/architecture.md` ist bewusst **englisch** — technische Referenz für die
   Zotero-Community, ohne Projekt- oder Nutzerbezug. Nicht übersetzen.

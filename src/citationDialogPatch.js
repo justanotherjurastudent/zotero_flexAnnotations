@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Auswahl „Vollnachweis / Nur Nachweis" im Zitationsdialog von Word und LibreOffice.
  *
@@ -122,7 +124,8 @@ FlexAnnotate.CitationDialogPatch = {
 		this.injectStyles(doc);
 		this.localize(doc, rows);
 		this.trackDialogType(doc, rows);
-		FlexAnnotate.log(`Added citation mode selector to citation dialog (${rows.length} location(s))`);
+		FlexAnnotate.log("Added citation mode selector to citation dialog "
+			+ `(${rows.length} location(s))`);
 	},
 
 	/**
@@ -184,7 +187,7 @@ FlexAnnotate.CitationDialogPatch = {
 	/**
 	 * @param {Document} doc
 	 * @param {String} suffix - Unterscheidet die beiden Einbauorte in den Element-IDs
-	 * @returns {Element}
+	 * @return {Element}
 	 */
 	createRow(doc, suffix) {
 		let selectID = `${this.SELECT_CLASS}-${suffix}`;

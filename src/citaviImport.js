@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Citavi-Import: Zitate ohne Dateianhang als Print-Annotationen übernehmen.
  *
@@ -46,11 +48,23 @@ FlexAnnotate.CitaviImport = {
 	_windowPatches: new WeakMap(),
 	/** Translation-Objekt eines Citavi-Imports, dessen Durchlauf noch aussteht */
 	_pending: null,
-	/** true, sobald mindestens ein Fenster den Durchlauf richtig einreiht */
-	_sequenced: false,
+	/**
+	 * Fenster, die den Durchlauf richtig einreihen. Set statt Flag: sonst bliebe der
+	 * Zustand nach dem Schließen des letzten solchen Fensters auf true stehen, und jeder
+	 * spätere Import würde einen Durchlauf vormerken, den niemand mehr auslöst.
+	 * removeFromWindow() räumt die Einträge wieder ab — das Set hält starke Referenzen.
+	 */
+	_sequencedWindows: new Set(),
 	/** nsIObserver auf domwindowopened */
 	_observer: null,
 
+	/**
+	 * Zitattyp aus dem Citavi-Export auf Farbe und Feldbelegung abbilden. Die Farben
+	 * sind aus `import/citavi.js:112-140` übernommen, damit dieselben Zitate hier wie
+	 * bei Zoteros eigenem Importer aussehen. Zwei davon (`#a6507b`, `#ff8c19`) stehen
+	 * nicht in `Zotero.Annotations.COLORS` — das ist Absicht und kein Fehler; sie
+	 * lassen sich in der Farbauswahl nicht wiederherstellen.
+	 */
 	QUOTATION_TYPES: {
 		1: { color: '#2ea8e5' }, // direktes Zitat
 		2: { color: '#a6507b', swap: true }, // indirektes Zitat
@@ -87,7 +101,7 @@ FlexAnnotate.CitaviImport = {
 	 * Entsprechung, je nach Zitierstil passen `paragraph`, `opus` oder `column`.
 	 *
 	 * @param {String|null} numberType - Inhalt von `<nt>`, oder null für „Seite"
-	 * @returns {String} CSL-Locator
+	 * @return {String} CSL-Locator
 	 */
 	getLocatorFor(numberType) {
 		let pref;
@@ -115,7 +129,7 @@ FlexAnnotate.CitaviImport = {
 	//
 
 	/**
-	 * @returns {Boolean} true, wenn der Patch nachweislich sitzt
+	 * @return {Boolean} true, wenn der Patch nachweislich sitzt
 	 */
 	patch() {
 		let proto = Zotero.Translate?.Import?.prototype;
@@ -137,10 +151,7 @@ FlexAnnotate.CitaviImport = {
 			});
 		};
 
-		proto.translate = patched;
-		if (proto.translate !== patched) {
-			// Gegenprobe: eine Zuweisung, die nur in einem Xray-Expando landet, wäre
-			// von einem gelungenen Patch sonst nicht zu unterscheiden.
+		if (!FlexAnnotate.assignChecked(proto, 'translate', patched)) {
 			Zotero.warn("FlexAnnotate: patch of Translate.Import.translate did not take effect — "
 				+ "Citavi-Zitate ohne Anhang werden nicht importiert.");
 			return false;
@@ -152,6 +163,10 @@ FlexAnnotate.CitaviImport = {
 		return true;
 	},
 
+	/**
+	 * Nimmt den globalen translate()-Patch zurück. Die fensterweisen Patches hängen an
+	 * removeFromWindow() und werden hier nicht berührt.
+	 */
 	unpatch() {
 		this._unwatchWindows();
 
@@ -159,7 +174,7 @@ FlexAnnotate.CitaviImport = {
 		if (!patch) {
 			return;
 		}
-		patch.proto.translate = patch.original;
+		FlexAnnotate.assignChecked(patch.proto, 'translate', patch.original);
 		this._translatePatch = null;
 		this._pending = null;
 		FlexAnnotate.log("Removed Translate.Import.translate patch");
@@ -167,7 +182,7 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * @param {Object} translation
-	 * @returns {Promise}
+	 * @return {Promise}
 	 */
 	async _afterTranslate(translation) {
 		try {
@@ -188,7 +203,7 @@ FlexAnnotate.CitaviImport = {
 					+ "der Aufrufweg dieses Imports ist nicht eingereiht.");
 			}
 			this._pending = translation;
-			if (this._sequenced) {
+			if (this._sequencedWindows.size) {
 				FlexAnnotate.log("Citavi import detected; print quotes queued");
 				return;
 			}
@@ -203,7 +218,7 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * @param {Object} translation
-	 * @returns {Boolean}
+	 * @return {Boolean}
 	 */
 	_isCitavi(translation) {
 		let label = this._getLabel(translation);
@@ -212,7 +227,7 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * @param {Object} translation
-	 * @returns {String|null}
+	 * @return {String|null}
 	 */
 	_getLabel(translation) {
 		let translator = translation?.translator?.[0];
@@ -226,7 +241,7 @@ FlexAnnotate.CitaviImport = {
 	 * Nur für die Logausgabe.
 	 *
 	 * @param {Object} translation
-	 * @returns {String}
+	 * @return {String}
 	 */
 	_describeTranslator(translation) {
 		let translator = translation?.translator?.[0];
@@ -277,6 +292,9 @@ FlexAnnotate.CitaviImport = {
 		FlexAnnotate.log("Watching for windows with their own Zotero_File_Interface");
 	},
 
+	/**
+	 * Meldet den Beobachter auf neue Fenster ab.
+	 */
 	_unwatchWindows() {
 		if (!this._observer) {
 			return;
@@ -321,8 +339,7 @@ FlexAnnotate.CitaviImport = {
 				}
 			};
 
-			fileInterface[name] = patched;
-			if (fileInterface[name] !== patched) {
+			if (!FlexAnnotate.assignChecked(fileInterface, name, patched)) {
 				FlexAnnotate.log(`Citavi sequencing: ${name} is not writable`);
 				continue;
 			}
@@ -336,7 +353,7 @@ FlexAnnotate.CitaviImport = {
 		}
 
 		this._windowPatches.set(window, patches);
-		this._sequenced = true;
+		this._sequencedWindows.add(window);
 		FlexAnnotate.log(`Sequenced Citavi pass after ${patches.map(p => p.name).join(', ')}`
 			+ ` in ${window.location?.href || 'window'}`);
 	},
@@ -350,9 +367,10 @@ FlexAnnotate.CitaviImport = {
 			return;
 		}
 		for (let { target, name, original } of patches) {
-			target[name] = original;
+			FlexAnnotate.assignChecked(target, name, original);
 		}
 		this._windowPatches.delete(window);
+		this._sequencedWindows.delete(window);
 		FlexAnnotate.log("Removed Citavi sequencing");
 	},
 
@@ -360,7 +378,7 @@ FlexAnnotate.CitaviImport = {
 	 * Holt den vorgemerkten Durchlauf nach. Ein Fehler darin darf den Import nicht
 	 * abbrechen — die regulär importierten Einträge stehen bereits.
 	 *
-	 * @returns {Promise}
+	 * @return {Promise}
 	 */
 	async _runPending() {
 		let translation = this._pending;
@@ -381,7 +399,7 @@ FlexAnnotate.CitaviImport = {
 	 * Print-Annotation an.
 	 *
 	 * @param {Object} translation
-	 * @returns {Promise<Number>} Anzahl angelegter Annotationen
+	 * @return {Promise<Number>} Anzahl angelegter Annotationen
 	 */
 	async importPrintQuotes(translation) {
 		let idMap = translation?._itemSaver?._IDMap;
@@ -485,11 +503,12 @@ FlexAnnotate.CitaviImport = {
 	 * @param {Zotero.Item} item - die Quelle
 	 * @param {Element} node - <KnowledgeItem>
 	 * @param {Object} ZU - Zotero.Utilities aus der Übersetzungs-Sandbox
-	 * @returns {Promise<Boolean>} true, wenn eine Notiz entfernt wurde
+	 * @return {Promise<Boolean>} true, wenn eine Notiz entfernt wurde
 	 */
 	async removeQuoteNote(item, node, ZU) {
 		let wanted = this.normalizeText(
-			(ZU.xpathText(node, './CoreStatement') || '') + ' ' + (ZU.xpathText(node, './Text') || '')
+			(ZU.xpathText(node, './CoreStatement') || '') + ' '
+				+ (ZU.xpathText(node, './Text') || '')
 		);
 		if (!wanted) {
 			return false;
@@ -517,7 +536,7 @@ FlexAnnotate.CitaviImport = {
 	 * ihm stammen und gehört zu einer fremden Notiz.
 	 *
 	 * @param {String} tail
-	 * @returns {Boolean}
+	 * @return {Boolean}
 	 */
 	isPageTail(tail) {
 		return tail.length <= this.MAX_NOTE_TAIL && /^[\s\d–-]*$/.test(tail);
@@ -525,7 +544,7 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * @param {String} html
-	 * @returns {String} Fließtext ohne Markup, Entities aufgelöst
+	 * @return {String} Fließtext ohne Markup, Entities aufgelöst
 	 */
 	stripMarkup(html) {
 		return String(html || '')
@@ -540,7 +559,7 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * @param {String} text
-	 * @returns {String} auf einfache Leerzeichen normalisiert, ohne Ränder
+	 * @return {String} auf einfache Leerzeichen normalisiert, ohne Ränder
 	 */
 	normalizeText(text) {
 		return String(text || '').replace(/\s+/g, ' ').trim();
@@ -548,7 +567,7 @@ FlexAnnotate.CitaviImport = {
 
 	/**
 	 * @param {Zotero.Item} item
-	 * @returns {Boolean} true, wenn ein Anhang existiert, den Zotero annotieren kann
+	 * @return {Boolean} true, wenn ein Anhang existiert, den Zotero annotieren kann
 	 */
 	hasAnnotatableAttachment(item) {
 		for (let attachment of Zotero.Items.get(item.getAttachments())) {
@@ -565,7 +584,7 @@ FlexAnnotate.CitaviImport = {
 	 *
 	 * @param {Object} ZU - Zotero.Utilities aus der Übersetzungs-Sandbox
 	 * @param {Element} node - <KnowledgeItem>
-	 * @returns {Object}
+	 * @return {Object}
 	 */
 	buildAnnotationData(ZU, node) {
 		let coreStatement = (ZU.xpathText(node, './CoreStatement') || '').trim();
@@ -610,7 +629,7 @@ FlexAnnotate.CitaviImport = {
 	 *
 	 * @param {Object} ZU
 	 * @param {Element} node - <KnowledgeItem>
-	 * @returns {{pageLabel: String, locator: String}}
+	 * @return {{pageLabel: String, locator: String}}
 	 */
 	parsePageRange(ZU, node) {
 		let raw = ZU.xpathText(node, './PageRange') || '';
@@ -634,7 +653,7 @@ FlexAnnotate.CitaviImport = {
 	 *
 	 * @param {Object} ZU
 	 * @param {Element} node - <KnowledgeItem>
-	 * @returns {String[]}
+	 * @return {String[]}
 	 */
 	getKeywords(ZU, node) {
 		try {

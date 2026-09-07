@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Verwaltung des Platzhalter-Attachments.
  *
@@ -18,7 +20,7 @@ FlexAnnotate.Placeholder = {
 	 * Liefert das Platzhalter-Attachment eines Titel-Items, oder null.
 	 *
 	 * @param {Zotero.Item} item - Reguläres Titel-Item
-	 * @returns {Zotero.Item|null}
+	 * @return {Zotero.Item|null}
 	 */
 	find(item) {
 		for (let attachment of Zotero.Items.get(item.getAttachments())) {
@@ -31,7 +33,7 @@ FlexAnnotate.Placeholder = {
 
 	/**
 	 * @param {Zotero.Item} item
-	 * @returns {Boolean}
+	 * @return {Boolean}
 	 */
 	isPlaceholder(item) {
 		return !!item && item.isAttachment() && item.hasTag(this.TAG);
@@ -41,7 +43,7 @@ FlexAnnotate.Placeholder = {
 	 * Liefert das Platzhalter-Attachment und legt es an, falls noch keins existiert.
 	 *
 	 * @param {Zotero.Item} item - Reguläres Titel-Item
-	 * @returns {Promise<Zotero.Item>}
+	 * @return {Promise<Zotero.Item>}
 	 */
 	async ensure(item) {
 		let existing = this.find(item);
@@ -53,7 +55,7 @@ FlexAnnotate.Placeholder = {
 
 	/**
 	 * @param {Zotero.Item} item - Reguläres Titel-Item
-	 * @returns {Promise<Zotero.Item>}
+	 * @return {Promise<Zotero.Item>}
 	 */
 	async create(item) {
 		if (!item.isRegularItem()) {
@@ -80,7 +82,8 @@ FlexAnnotate.Placeholder = {
 			});
 			attachment.addTag(this.TAG, 1);
 			await attachment.saveTx();
-			FlexAnnotate.log(`Created placeholder attachment ${attachment.key} for item ${item.key}`);
+			FlexAnnotate.log(`Created placeholder attachment ${attachment.key} `
+				+ `for item ${item.key}`);
 			return attachment;
 		}
 		finally {
@@ -93,7 +96,7 @@ FlexAnnotate.Placeholder = {
 	 * und die Einstellung das Aufräumen erlaubt.
 	 *
 	 * @param {Zotero.Item} attachment
-	 * @returns {Promise<Boolean>} true, wenn entfernt wurde
+	 * @return {Promise<Boolean>} true, wenn entfernt wurde
 	 */
 	async cleanUpIfEmpty(attachment) {
 		if (!this.isPlaceholder(attachment)) {
@@ -114,7 +117,7 @@ FlexAnnotate.Placeholder = {
 	 * Minimales, gültiges 1-Seiten-PDF (A4, leer). Die xref-Offsets werden berechnet,
 	 * damit pdf.js die Datei ohne Reparaturlauf öffnet.
 	 *
-	 * @returns {Uint8Array}
+	 * @return {Uint8Array}
 	 */
 	buildPDF() {
 		let objects = [

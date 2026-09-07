@@ -255,9 +255,12 @@ text survives.
 
 ### 1. Silent patch failure
 
-The plugin does not run in strict mode. Assigning to a frozen object or through an Xray wrapper does nothing
-instead of throwing, so an ineffective patch is indistinguishable from a successful one. **Rule:** after
-every patch, read the property back and compare identity. Every patch here does.
+A patch assignment can fail in two ways. Outside strict mode, assigning to a frozen object or through an
+Xray wrapper does nothing instead of throwing. Under `"use strict"` a non-writable target throws a
+TypeError, which aborts the caller and takes unrelated patches down with it; an Xray expando still absorbs
+the write without any error at all. Either way an ineffective patch is indistinguishable from a successful
+one. **Rule:** wrap the assignment in `try`/`catch`, then read the property back and compare identity, and
+treat the result as a boolean. Every patch here goes through one such helper.
 
 Concrete case: `fileInterface.js:686` calls `(0, _citavi.ImportCitaviAnnotatons)(translation)` and reads the
 property from the module object at call time, so replacing it there ought to work. It does not —
@@ -340,6 +343,24 @@ based on whether exactly one regular item is selected and whether the selection 
 (`FlexAnnotate.getSelectedPrintAnnotation()`). Print annotations appear both as item-tree rows under the
 placeholder and as `annotation-row` elements in the item pane, so edit and delete are registered in both
 menus.
+
+### 10. The plugin scope is global, windows are not
+
+A bootstrapped plugin is loaded once per session, so every module object is shared by all main windows,
+while the elements it builds — panels, popups, menus — exist once per document. Storing "what the user just
+clicked" on the module object therefore couples windows that should be independent: a right-click in the
+second window overwrites the field, and the button in the first window then acts on the second window's
+item. Nothing throws, and the wrong record is written.
+
+**Rule:** state that belongs to one interaction lives on the element the interaction happened on — an
+expando on the panel, an attribute on the popup — never on the module object. Only genuinely global state
+(installed patches, registered observers) belongs there, and per-window bookkeeping goes into a
+`WeakMap` keyed by the window.
+
+The same asymmetry has a second edge: a flag meaning "at least one window is set up" latches. Track the
+windows in a collection and test whether it is empty; a flag set in `addToWindow()` will not be cleared by
+`removeFromWindow()` unless every caller remembers to, and a stale `true` silently disables the very path
+it was meant to guard.
 
 ## Compatibility and teardown
 

@@ -1,3 +1,5 @@
+"use strict";
+
 // Skript des Einstellungs-Panels. Es läuft im Scope des Einstellungsfensters, geladen
 // über den scripts-Eintrag in Zotero.PreferencePanes.register().
 //
@@ -29,7 +31,7 @@
 	 * (cite.js:66-67). Bricht das Füllen ab, liefern spätere Aufrufe `undefined` — ohne
 	 * Rückfall würde das Sortieren daran scheitern und gar kein Eintrag entstehen.
 	 *
-	 * @returns {Array<{ value: String, label: String }>}
+	 * @return {Array<{ value: String, label: String }>}
 	 */
 	let getLocatorOptions = () => {
 		let locators = Zotero.Cite.labels.map(locator => ({
@@ -54,7 +56,7 @@
 	 * des Einfügens schon steht. Ein `value` von Hand zu setzen löst kein `command`-
 	 * Ereignis aus und schreibt damit auch nichts in die Einstellungen zurück.
 	 *
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	let fillLocatorMenus = async () => {
 		let open = LOCATOR_MENULISTS
@@ -81,7 +83,10 @@
 			let menulist = popup.closest('menulist');
 			let pref = menulist?.getAttribute('preference');
 			if (pref) {
-				menulist.value = Zotero.Prefs.get(pref, true);
+				// Zotero.Prefs.get() liefert für einen ungesetzten Pref undefined statt zu
+				// werfen (prefs.js:248-274). prefs.js wird zwar bei jedem Start gelesen,
+				// aber ohne Rückfall bliebe das Feld beim ersten Lauf ohne Auswahl stehen.
+				menulist.value = Zotero.Prefs.get(pref, true) || 'page';
 			}
 		}
 

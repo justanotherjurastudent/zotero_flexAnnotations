@@ -1,21 +1,31 @@
-FlexAnnotate = {
+"use strict";
+
+var FlexAnnotate = {
 	id: null,
 	version: null,
 	rootURI: null,
-	initialized: false,
-	addedElementIDs: [],
+	_initialized: false,
+	/** IDs aller selbst eingehängten Elemente, für removeFromWindow() */
+	_addedElementIDs: [],
 
 	/** WeakMap<Window, Function> — popupshowing-Listener je Fenster */
 	_menuListeners: new WeakMap(),
 
 	PREF_BRANCH: 'extensions.flexannotate.',
 
+	/**
+	 * Lädt die übrigen Module nach. Wird von bootstrap.js einmal je Sitzung gerufen.
+	 *
+	 * @param {Object} data - `{ id, version, rootURI }` aus startup()
+	 */
 	init({ id, version, rootURI }) {
-		if (this.initialized) return;
+		if (this._initialized) {
+			return;
+		}
 		this.id = id;
 		this.version = version;
 		this.rootURI = rootURI;
-		this.initialized = true;
+		this._initialized = true;
 
 		// ignoreCache wie bei Zoteros eigenem Laden von bootstrap.js (plugins.js:205-210):
 		// ohne das liefert der Startup-Cache beim Entwickeln weiter die alte Fassung,
@@ -36,6 +46,10 @@ FlexAnnotate = {
 		}
 	},
 
+	/**
+	 * Nimmt alle Patches an internen Zotero-Funktionen zurück. Ein Fehler in einem
+	 * Modul darf die übrigen nicht aufhalten, sonst bliebe ein Patch stehen.
+	 */
 	uninit() {
 		for (let patch of [this.IntegrationPatch, this.CitationDialogPatch, this.CitaviImport]) {
 			try {
@@ -47,23 +61,58 @@ FlexAnnotate = {
 		}
 	},
 
+	/**
+	 * @param {String} msg
+	 */
 	log(msg) {
 		Zotero.debug("FlexAnnotate: " + msg);
 	},
 
+	/**
+	 * Für Fehler, die abgefangen und nicht weitergereicht werden. Zotero.logError()
+	 * schreibt selbst schon nach Zotero.debug() (zotero.js:1398-1403) und behält dabei
+	 * den Stack — eine zweite, stringifizierte Zeile würde ihn wegwerfen.
+	 *
+	 * @param {Error} e
+	 */
 	logError(e) {
 		Zotero.logError(e);
-		Zotero.debug("FlexAnnotate: " + e);
+	},
+
+	/**
+	 * Setzt eine Eigenschaft auf einem fremden Objekt und weist nach, dass sie steht.
+	 * Zwei Fehlerbilder sind hier möglich: ein nicht schreibbares Ziel — unter
+	 * "use strict" ein TypeError — und eine Zuweisung, die nur in einem
+	 * Xray-Expando landet und beim Zurücklesen nicht wieder auftaucht. Ohne diese
+	 * Prüfung ist ein wirkungsloser Patch von einem gelungenen nicht zu unterscheiden.
+	 *
+	 * @param {Object} target
+	 * @param {String} name
+	 * @param {*} value
+	 * @return {Boolean} true, wenn die Eigenschaft nachweislich gesetzt ist
+	 */
+	assignChecked(target, name, value) {
+		try {
+			target[name] = value;
+		}
+		catch (e) {
+			return false;
+		}
+		return target[name] === value;
 	},
 
 	/**
 	 * @param {String} key - Pref-Name ohne Branch
-	 * @returns {*}
+	 * @return {*}
 	 */
 	getPref(key) {
 		return Zotero.Prefs.get(this.PREF_BRANCH + key, true);
 	},
 
+	/**
+	 * @param {String} key - Pref-Name ohne Branch
+	 * @param {*} value
+	 */
 	setPref(key, value) {
 		return Zotero.Prefs.set(this.PREF_BRANCH + key, value, true);
 	},
@@ -78,7 +127,7 @@ FlexAnnotate = {
 	 *
 	 * @param {String} id - Fluent-ID
 	 * @param {String} fallback - Greift, solange noch kein Hauptfenster steht
-	 * @returns {Promise<String>}
+	 * @return {Promise<String>}
 	 */
 	async getString(id, fallback) {
 		try {
@@ -91,6 +140,12 @@ FlexAnnotate = {
 		}
 	},
 
+	/**
+	 * Setzt die Patches an internen Zotero-Funktionen. Läuft nach addToAllWindows(),
+	 * weil kein Patch auf ein Hauptfenster angewiesen ist.
+	 *
+	 * @return {Promise<void>}
+	 */
 	async main() {
 		this.IntegrationPatch.patch();
 		this.CitationDialogPatch.patch();
@@ -178,6 +233,11 @@ FlexAnnotate = {
 		this.storeAddedElement(menuitem);
 	},
 
+	/**
+	 * Blendet die eigenen Menüpunkte je nach Auswahl im Item-Baum ein oder aus.
+	 *
+	 * @param {Window} window
+	 */
 	updateMenuState(window) {
 		let doc = window.document;
 		let items = window.ZoteroPane?.getSelectedItems() || [];
@@ -205,7 +265,7 @@ FlexAnnotate = {
 	 * sie unter einem unserer Platzhalter-Anhänge hängt.
 	 *
 	 * @param {Window} window
-	 * @returns {Zotero.Item|null}
+	 * @return {Zotero.Item|null}
 	 */
 	getSelectedPrintAnnotation(window) {
 		let items = window.ZoteroPane?.getSelectedItems() || [];
@@ -223,7 +283,7 @@ FlexAnnotate = {
 	 * Öffnet die Eingabemaske für das ausgewählte Titel-Item.
 	 *
 	 * @param {Window} window
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	async openPrintAnnotationDialog(window) {
 		let items = window.ZoteroPane?.getSelectedItems() || [];
@@ -233,9 +293,14 @@ FlexAnnotate = {
 		await this.Dialog.open(window, items[0]);
 	},
 
+	/**
+	 * Baut die Oberfläche in alle bereits offenen Hauptfenster.
+	 */
 	addToAllWindows() {
 		for (let win of Zotero.getMainWindows()) {
-			if (!win.ZoteroPane) continue;
+			if (!win.ZoteroPane) {
+				continue;
+			}
 			this.addToWindow(win);
 		}
 	},
@@ -250,11 +315,16 @@ FlexAnnotate = {
 		if (!elem.id) {
 			throw new Error("Element must have an id");
 		}
-		if (!this.addedElementIDs.includes(elem.id)) {
-			this.addedElementIDs.push(elem.id);
+		if (!this._addedElementIDs.includes(elem.id)) {
+			this._addedElementIDs.push(elem.id);
 		}
 	},
 
+	/**
+	 * Nimmt die Oberfläche aus einem Hauptfenster zurück.
+	 *
+	 * @param {Window} window
+	 */
 	removeFromWindow(window) {
 		let doc = window.document;
 
@@ -274,15 +344,20 @@ FlexAnnotate = {
 			this._menuListeners.delete(window);
 		}
 
-		for (let id of this.addedElementIDs) {
+		for (let id of this._addedElementIDs) {
 			doc.getElementById(id)?.remove();
 		}
 		doc.querySelector('[href="flexannotate.ftl"]')?.remove();
 	},
 
+	/**
+	 * Nimmt die Oberfläche aus allen Hauptfenstern zurück.
+	 */
 	removeFromAllWindows() {
 		for (let win of Zotero.getMainWindows()) {
-			if (!win.ZoteroPane) continue;
+			if (!win.ZoteroPane) {
+				continue;
+			}
 			this.removeFromWindow(win);
 		}
 	}

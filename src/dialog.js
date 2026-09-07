@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Eingabemaske für Print-Annotationen — zum Anlegen und zum Nachbearbeiten.
  *
@@ -15,26 +17,18 @@
 FlexAnnotate.Dialog = {
 	PANEL_ID: 'flexannotate-print-annotation-panel',
 
-	/** 'create' oder 'edit' */
-	_mode: 'create',
-	_item: null,
-	_annotation: null,
-
 	/**
 	 * Öffnet die Maske zum Anlegen einer neuen Print-Annotation.
 	 *
 	 * @param {Window} window - Zotero-Hauptfenster
 	 * @param {Zotero.Item} item - Reguläres Titel-Item
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	async open(window, item) {
-		this._mode = 'create';
-		this._item = item;
-		this._annotation = null;
-
 		let doc = window.document;
 		await this.ensureLocatorsReady();
 		let panel = this.build(window);
+		panel._flexannotateState = { mode: 'create', item, annotation: null };
 
 		this.fill(doc, {
 			source: item.getDisplayTitle(),
@@ -56,19 +50,17 @@ FlexAnnotate.Dialog = {
 	 *
 	 * @param {Window} window - Zotero-Hauptfenster
 	 * @param {Zotero.Item} annotation
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	async openForEdit(window, annotation) {
-		this._mode = 'edit';
-		this._annotation = annotation;
-		this._item = annotation.topLevelItem;
-
 		let doc = window.document;
 		await this.ensureLocatorsReady();
 		let panel = this.build(window);
+		let item = annotation.topLevelItem;
+		panel._flexannotateState = { mode: 'edit', item, annotation };
 
 		this.fill(doc, {
-			source: this._item ? this._item.getDisplayTitle() : '',
+			source: item ? item.getDisplayTitle() : '',
 			locator: FlexAnnotate.PrintAnnotations.getLocator(annotation),
 			pageLabel: annotation.annotationPageLabel || '',
 			type: annotation.annotationType,
@@ -114,7 +106,7 @@ FlexAnnotate.Dialog = {
 	 * Legt das Panel einmalig an und liefert es bei weiteren Aufrufen wieder.
 	 *
 	 * @param {Window} window
-	 * @returns {Element}
+	 * @return {Element}
 	 */
 	build(window) {
 		let doc = window.document;
@@ -134,30 +126,40 @@ FlexAnnotate.Dialog = {
 						</menulist>
 						<html:input id="flexannotate-dialog-page" type="text" style="width: 7em;"/>
 
-						<label data-l10n-id="flexannotate-field-type" control="flexannotate-dialog-type"/>
+						<label data-l10n-id="flexannotate-field-type"
+							control="flexannotate-dialog-type"/>
 						<menulist id="flexannotate-dialog-type" native="true">
 							<menupopup>
-								<menuitem value="highlight" data-l10n-id="flexannotate-type-highlight"/>
-								<menuitem value="underline" data-l10n-id="flexannotate-type-underline"/>
-								<menuitem value="note" data-l10n-id="flexannotate-type-note"/>
+								<menuitem value="highlight"
+									data-l10n-id="flexannotate-type-highlight"/>
+								<menuitem value="underline"
+									data-l10n-id="flexannotate-type-underline"/>
+								<menuitem value="note"
+									data-l10n-id="flexannotate-type-note"/>
 							</menupopup>
 						</menulist>
 
-						<label data-l10n-id="flexannotate-field-color" control="flexannotate-dialog-color"/>
+						<label data-l10n-id="flexannotate-field-color"
+							control="flexannotate-dialog-color"/>
 						<menulist id="flexannotate-dialog-color" native="true">
 							<menupopup id="flexannotate-dialog-color-popup"/>
 						</menulist>
 					</hbox>
 
-					<label data-l10n-id="flexannotate-field-text" control="flexannotate-dialog-text"/>
+					<label data-l10n-id="flexannotate-field-text"
+						control="flexannotate-dialog-text"/>
 					<html:textarea id="flexannotate-dialog-text" rows="5"/>
 
-					<label data-l10n-id="flexannotate-field-comment" control="flexannotate-dialog-comment"/>
+					<label data-l10n-id="flexannotate-field-comment"
+						control="flexannotate-dialog-comment"/>
 					<html:textarea id="flexannotate-dialog-comment" rows="3"/>
 
 					<hbox pack="end" style="gap: 8px; margin-top: 6px;">
-						<button id="flexannotate-dialog-cancel" data-l10n-id="flexannotate-button-cancel" native="true"/>
-						<button id="flexannotate-dialog-accept" data-l10n-id="flexannotate-button-save" native="true" default="true"/>
+						<button id="flexannotate-dialog-cancel"
+							data-l10n-id="flexannotate-button-cancel" native="true"/>
+						<button id="flexannotate-dialog-accept"
+							data-l10n-id="flexannotate-button-save" native="true"
+							default="true"/>
 					</hbox>
 				</vbox>
 			</panel>
@@ -199,7 +201,7 @@ FlexAnnotate.Dialog = {
 	 * init() gibt eine bereits laufende Initialisierung als Promise zurück
 	 * (style.js:70-77) und ist damit beliebig oft aufrufbar.
 	 *
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	async ensureLocatorsReady() {
 		await Zotero.Styles.init();
@@ -216,7 +218,11 @@ FlexAnnotate.Dialog = {
 		let popup = doc.getElementById('flexannotate-dialog-locator-popup');
 		let locators = Zotero.Cite.labels.map(locator => ({
 			value: locator,
-			label: Zotero.Cite.getLocatorString(locator)
+			// getLocatorString() legt seine Locale-Map an, bevor es sie füllt
+			// (cite.js:66-67): bricht das Füllen ab, kommt undefined zurück, und ohne
+			// Rückfall würde das Sortieren darauf werfen — das Menü bliebe dann bis zum
+			// nächsten Zotero-Start leer, weil build() das Panel weiterreicht.
+			label: Zotero.Cite.getLocatorString(locator) || locator
 		}));
 		locators.sort((a, b) => a.label.localeCompare(b.label));
 
@@ -268,7 +274,7 @@ FlexAnnotate.Dialog = {
 	/**
 	 * @param {Window} window
 	 * @param {Element} panel
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	async accept(window, panel) {
 		let doc = window.document;
@@ -288,19 +294,26 @@ FlexAnnotate.Dialog = {
 			comment: doc.getElementById('flexannotate-dialog-comment').value.trim()
 		};
 
+		let state = panel._flexannotateState;
 		panel.hidePopup();
 
 		try {
-			if (this._mode === 'edit') {
-				await FlexAnnotate.PrintAnnotations.update(this._annotation, data);
+			if (state.mode === 'edit') {
+				await FlexAnnotate.PrintAnnotations.update(state.annotation, data);
 			}
 			else {
-				await FlexAnnotate.PrintAnnotations.create(this._item, data);
+				await FlexAnnotate.PrintAnnotations.create(state.item, data);
 			}
 		}
 		catch (e) {
 			FlexAnnotate.logError(e);
-			Zotero.alert(window, 'FlexAnnotate', String(e));
+			// Der Rohtext der Ausnahme ist nicht übersetzt und für Lesende nutzlos; er
+			// steht bereits im Debug-Log. Nur als Ersatz, solange keine L10n bereitsteht.
+			Zotero.alert(
+				window,
+				'FlexAnnotate',
+				await FlexAnnotate.getString('flexannotate-save-failed', String(e))
+			);
 		}
 	}
 };

@@ -1,3 +1,5 @@
+"use strict";
+
 var FlexAnnotate;
 
 function log(msg) {
@@ -47,7 +49,9 @@ function onMainWindowUnload({ window }) {
 
 function shutdown() {
 	log("Shutting down");
-	if (!FlexAnnotate) return;
+	if (!FlexAnnotate) {
+		return;
+	}
 	FlexAnnotate.removeFromAllWindows();
 	FlexAnnotate.uninit();
 	FlexAnnotate = undefined;

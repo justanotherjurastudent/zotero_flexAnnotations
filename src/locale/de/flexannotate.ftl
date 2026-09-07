@@ -78,3 +78,7 @@ flexannotate-prefs-citavi-locator-other =
 flexannotate-prefs-citavi-locator-description =
     Links Citavis Seitentyp, rechts der Locator der Zitation. Für Randnummern kennt CSL
     keine Entsprechung — je nach Zitierstil passt „Absatz", „Opus" oder „Spalte".
+
+flexannotate-save-failed =
+    Die Print-Annotation konnte nicht gespeichert werden. Einzelheiten stehen im
+    Debug-Log (Hilfe → Debug-Ausgabe).

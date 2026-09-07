@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Feature B – Nur-Nachweis-Zitieren.
  *
@@ -29,7 +31,7 @@ FlexAnnotate.IntegrationPatch = {
 	 * Wendet den Patch an, sofern der Zielpfad vorhanden ist (Feature-Detection statt
 	 * Versionsvergleich — bricht bei künftigen Zotero-Umbauten sauber ab statt zu crashen).
 	 *
-	 * @returns {Boolean} true, wenn gepatcht wurde
+	 * @return {Boolean} true, wenn gepatcht wurde
 	 */
 	patch() {
 		if (this._patched) {
@@ -39,7 +41,7 @@ FlexAnnotate.IntegrationPatch = {
 		let proto = Zotero.Integration?.Session?.prototype;
 		if (!proto || typeof proto._insertCitingResult !== 'function') {
 			Zotero.warn(
-				"FlexAnnotate: Zotero.Integration.Session.prototype._insertCitingResult not found — "
+				"FlexAnnotate: Integration.Session.prototype._insertCitingResult not found — "
 				+ "Feature B (Nur-Nachweis-Zitieren) bleibt deaktiviert."
 			);
 			return false;
@@ -71,13 +73,9 @@ FlexAnnotate.IntegrationPatch = {
 			return self._original.call(this, fieldIndex, field, citation);
 		};
 
-		proto._insertCitingResult = patched;
-
-		// Gegenprobe: Zuweisungen an fremde Objekte können lautlos verpuffen, wenn das
-		// Ziel eingefroren ist oder nur über einen Xray-Wrapper sichtbar wird — unser
-		// Code läuft nicht im strict mode, es gäbe dann keinen Fehler. Genau das ist
-		// beim Citavi-Modul passiert (siehe docs/architecture.md).
-		if (proto._insertCitingResult !== patched) {
+		// Gegenprobe: eine Zuweisung an ein fremdes Objekt kann fehlschlagen, ohne dass
+		// der Aufrufer es merkt — siehe FlexAnnotate.assignChecked().
+		if (!FlexAnnotate.assignChecked(proto, '_insertCitingResult', patched)) {
 			Zotero.warn("FlexAnnotate: patch of _insertCitingResult did not take effect — "
 				+ "Feature B (Nur-Nachweis-Zitieren) bleibt wirkungslos.");
 			this._original = null;
@@ -89,13 +87,16 @@ FlexAnnotate.IntegrationPatch = {
 		return true;
 	},
 
+	/**
+	 * Stellt die ursprüngliche _insertCitingResult wieder her.
+	 */
 	unpatch() {
 		if (!this._patched) {
 			return;
 		}
 		let proto = Zotero.Integration?.Session?.prototype;
 		if (proto && this._original) {
-			proto._insertCitingResult = this._original;
+			FlexAnnotate.assignChecked(proto, '_insertCitingResult', this._original);
 		}
 		this._original = null;
 		this._patched = false;
@@ -113,7 +114,7 @@ FlexAnnotate.IntegrationPatch = {
 	 * alle Annotationen validiert sind.
 	 *
 	 * @param {Object} citation - Zotero-Citation-Objekt mit geladenen Item-Daten
-	 * @returns {Promise<Object|null>} Dieselbe Citation, oder null wenn nicht zutreffend
+	 * @return {Promise<Object|null>} Dieselbe Citation, oder null wenn nicht zutreffend
 	 */
 	async rewriteToCitationOnly(citation) {
 		let citationItems = citation?.citationItems;

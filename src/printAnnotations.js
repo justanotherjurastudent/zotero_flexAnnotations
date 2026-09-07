@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Anlegen und Bearbeiten von Print-Annotationen.
  *
@@ -35,7 +37,7 @@ FlexAnnotate.PrintAnnotations = {
 	 * @param {String} [data.type] - 'highlight' | 'underline' | 'note'
 	 * @param {String} [data.locator] - CSL-Locator, z. B. 'page' oder 'paragraph'
 	 * @param {String[]} [data.tags] - Schlagwörter, die an die Annotation gehängt werden
-	 * @returns {Promise<Zotero.Item>}
+	 * @return {Promise<Zotero.Item>}
 	 */
 	async create(item, data) {
 		let attachment = await FlexAnnotate.Placeholder.ensure(item);
@@ -85,7 +87,7 @@ FlexAnnotate.PrintAnnotations = {
 	 *
 	 * @param {Zotero.Item} annotation
 	 * @param {Object} data - Wie bei create(); nur gesetzte Felder werden übernommen
-	 * @returns {Promise<Zotero.Item>}
+	 * @return {Promise<Zotero.Item>}
 	 */
 	async update(annotation, data) {
 		if (!annotation.isAnnotation()) {
@@ -119,7 +121,7 @@ FlexAnnotate.PrintAnnotations = {
 	 * Liefert den Locator-Typ einer Annotation.
 	 *
 	 * @param {Zotero.Item} annotation
-	 * @returns {String} z. B. 'page', 'paragraph', 'section'
+	 * @return {String} z. B. 'page', 'paragraph', 'section'
 	 */
 	getLocator(annotation) {
 		for (let tag of annotation.getTags()) {
@@ -154,7 +156,7 @@ FlexAnnotate.PrintAnnotations = {
 	 * Löscht eine Print-Annotation und räumt ein leer gewordenes Platzhalter-Attachment auf.
 	 *
 	 * @param {Zotero.Item} annotation
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	async erase(annotation) {
 		let attachment = annotation.parentItem;
@@ -166,11 +168,13 @@ FlexAnnotate.PrintAnnotations = {
 
 	/**
 	 * Kodiert die Druckseitenzahl in den sortIndex, damit der Annotations-Tab nach
-	 * Buchseite sortiert statt nach Anlagereihenfolge. Nicht-numerische Seitenangaben
-	 * (z. B. "XIV" oder "Rn. 12") landen hinten, behalten aber ihre Reihenfolge.
+	 * Buchseite sortiert statt nach Anlagereihenfolge. Maßgeblich ist die erste
+	 * Ziffernfolge im Label: "Rn. 12" sortiert wie Seite 12. Labels ganz ohne Ziffern
+	 * (z. B. "XIV") bekommen alle denselben Höchstwert, landen damit hinten und stehen
+	 * untereinander in unbestimmter Reihenfolge.
 	 *
 	 * @param {String|Number} pageLabel
-	 * @returns {String} Format: \d{5}|\d{6}|\d{5}
+	 * @return {String} Format: \d{5}|\d{6}|\d{5}
 	 */
 	buildSortIndex(pageLabel) {
 		let match = String(pageLabel ?? '').match(/\d+/);
@@ -184,7 +188,7 @@ FlexAnnotate.PrintAnnotations = {
 
 	/**
 	 * @param {String} [color]
-	 * @returns {String} 6-stelliger Kleinbuchstaben-Hexwert
+	 * @return {String} 6-stelliger Kleinbuchstaben-Hexwert
 	 */
 	normalizeColor(color) {
 		let value = String(color || '').trim().toLowerCase();

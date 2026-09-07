@@ -78,3 +78,7 @@ flexannotate-prefs-citavi-locator-description =
     Citavi's page type on the left, the citation locator on the right. CSL has no locator
     for margin numbers — depending on the citation style, “paragraph”, “opus” or
     “column” fits.
+
+flexannotate-save-failed =
+    The print annotation could not be saved. Details are in the debug log
+    (Help → Debug Output Logging).

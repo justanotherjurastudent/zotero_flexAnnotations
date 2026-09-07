@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Kontextmenü an Print-Annotationen im Item-Bereich.
  *
@@ -15,8 +17,15 @@ FlexAnnotate.AnnotationMenu = {
 
 	/** WeakMap<Window, Function> — contextmenu-Listener je Fenster */
 	_listeners: new WeakMap(),
-	/** Annotation, auf der das Menü zuletzt geöffnet wurde */
-	_current: null,
+
+	/**
+	 * Attribut am Popup, das die zuletzt angeklickte Annotation hält. Bewusst am
+	 * Popup und nicht an diesem Objekt: das Popup gehört zu genau einem Dokument,
+	 * dieses Objekt dagegen zu allen Fenstern — ein zweiter Rechtsklick in einem
+	 * anderen Fenster würde ein gemeinsames Feld überschreiben und die Bearbeitung
+	 * oder Löschung auf die falsche Annotation lenken.
+	 */
+	ANNOTATION_ATTR: 'data-flexannotate-annotation-id',
 
 	/**
 	 * @param {Window} window - Zotero-Hauptfenster
@@ -42,7 +51,7 @@ FlexAnnotate.AnnotationMenu = {
 
 		doc.getElementById('flexannotate-annotation-edit')
 			.addEventListener('command', () => {
-				let annotation = this._current;
+				let annotation = this.getCurrent(popup);
 				if (annotation) {
 					FlexAnnotate.Dialog.openForEdit(window, annotation)
 						.catch(e => FlexAnnotate.logError(e));
@@ -50,7 +59,7 @@ FlexAnnotate.AnnotationMenu = {
 			});
 		doc.getElementById('flexannotate-annotation-delete')
 			.addEventListener('command', () => {
-				let annotation = this._current;
+				let annotation = this.getCurrent(popup);
 				if (annotation) {
 					FlexAnnotate.PrintAnnotations.erase(annotation)
 						.catch(e => FlexAnnotate.logError(e));
@@ -82,6 +91,15 @@ FlexAnnotate.AnnotationMenu = {
 	},
 
 	/**
+	 * @param {Element} popup
+	 * @return {Zotero.Item|null} Annotation, auf der dieses Menü geöffnet wurde
+	 */
+	getCurrent(popup) {
+		let id = parseInt(popup.getAttribute(this.ANNOTATION_ATTR), 10);
+		return id ? Zotero.Items.get(id) || null : null;
+	},
+
+	/**
 	 * @param {Window} window
 	 * @param {Event} event
 	 * @param {Element} popup
@@ -106,7 +124,7 @@ FlexAnnotate.AnnotationMenu = {
 			return;
 		}
 
-		this._current = annotation;
+		popup.setAttribute(this.ANNOTATION_ATTR, String(annotation.id));
 		event.preventDefault();
 		event.stopPropagation();
 		popup.openPopupAtScreen(event.screenX, event.screenY, true);
