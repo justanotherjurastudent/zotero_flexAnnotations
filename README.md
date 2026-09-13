@@ -1,3 +1,4 @@
+[![zotero target version](https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
 # FlexAnnotate
 
 **Sprache / Language: [🇩🇪 Deutsch](#deutsch) · [🇬🇧 English](#english)**
