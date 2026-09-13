@@ -55,16 +55,22 @@ Printbücher, Kommentare, Gesetzessammlungen. Rechtsklick auf einen Titel →
 *Print-Annotation hinzufügen…*; Seite, Locator-Typ, Zitat, Kommentar, Farbe und Typ
 eintragen. Bearbeiten und Löschen über das Kontextmenü, sowohl im Item-Baum als auch im
 Annotations-Bereich rechts.
+Die Annotationen lassen sich im Nachhinein auch mit Rechtsklick auf die Annotation bearbeiten oder löschen.
 
 Die Annotationen verhalten sich anschließend wie gewöhnliche Zotero-Annotationen: sie
 erscheinen im Annotations-Tab, lassen sich durchsuchen und taggen und sind im
 Word-/LibreOffice-Dialog „Anmerkung hinzufügen" auswählbar.
+<img width="619" height="393" alt="image" src="https://github.com/user-attachments/assets/acc79329-b4ab-47b4-a478-ddc07fd89309" />
+<img width="1273" height="155" alt="image" src="https://github.com/user-attachments/assets/c7e1dcd2-bd16-4819-b6ab-52d47db0f59f" />
+
 
 #### Nur-Nachweis-Zitieren
 
 Beim Einfügen von Annotationen in Word oder LibreOffice wahlweise **nur die Zitation mit
 Fundstelle** — ohne Zitattext und Kommentar. Umschaltbar direkt im Zitationsdialog
 („Einfügen als"), voreingestellt über die Zotero-Einstellungen.
+<img width="796" height="177" alt="image" src="https://github.com/user-attachments/assets/64b45262-7d9e-4a52-b3cc-26527489cd73" />
+
 
 #### Citavi-Import
 
@@ -211,16 +217,20 @@ attachment — printed books, commentaries, statute collections. Right-click a t
 *Add print annotation…*; enter page, locator type, quote, comment, color, and type. Edit
 and delete via the context menu, both in the item tree and in the annotations pane on the
 right.
+Annotations can be edited and deleted afterwards by right-click on the annotation.
 
 The annotations then behave like ordinary Zotero annotations: they appear in the
 annotations tab, can be searched and tagged, and are selectable in the Word/LibreOffice
 "Add note" dialog.
+<img width="619" height="393" alt="image" src="https://github.com/user-attachments/assets/acc79329-b4ab-47b4-a478-ddc07fd89309" />
+<img width="1273" height="155" alt="image" src="https://github.com/user-attachments/assets/c7e1dcd2-bd16-4819-b6ab-52d47db0f59f" />
 
 #### Citation-only citing
 
 When inserting annotations into Word or LibreOffice, optionally **only the citation with
 the pinpoint** — without the quoted text and comment. Toggled directly in the citation
 dialog ("Insert as"), with a default set in the Zotero preferences.
+<img width="796" height="177" alt="image" src="https://github.com/user-attachments/assets/64b45262-7d9e-4a52-b3cc-26527489cd73" />
 
 #### Citavi import
 
