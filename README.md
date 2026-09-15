@@ -79,6 +79,10 @@ verwirft er. FlexAnnotate legt für diese Print-Annotationen an — mit Fundstel
 Zitattyp-Farbe und Schlagwörtern. Auf Wunsch bleibt die Notiz, die Zotero zu demselben
 Zitat anlegt, erhalten.
 
+Zusätzlich verknüpft FlexAnnotate Beiträge (in Sammelwerken, Gesetzeskommentaren,
+Tagungsbänden) automatisch mit ihrem übergeordneten Hauptwerk und untereinander als
+Zotero-„Verwandte" — eine Zuordnung, die Zoteros eigener Übersetzer verwirft.
+
 ### Plattformen
 
 Überall dort, wo Zotero 7 oder 10 läuft: **Windows, macOS** (Intel und Apple Silicon)
@@ -126,6 +130,7 @@ powershell -File tools/build.ps1     # -> build/flexannotate.xpi
 | Leere Platzhalter-Anhänge behalten | aus | Platzhalter bleibt bestehen, auch wenn keine Annotation mehr daran hängt |
 | Zitate ohne Dateianhang als Print-Annotationen übernehmen | **an** | Citavi-Import: Zitate, die Zotero verwirft, werden übernommen |
 | Notiz zum Zitat behalten | aus | Citavi-Import: die zusätzliche Notiz zum übernommenen Zitat bleibt stehen |
+| Beiträge mit ihrem Hauptwerk verknüpfen | **an** | Citavi-Import: verknüpft Beiträge mit dem Hauptwerk und untereinander als Zotero-„Verwandte" |
 | Fundstellen zitieren als | Seite → Seite, Spalte → Spalte, Paragraph → Absatz, Randnummer → Absatz, Andere → Seite | Citavi-Import: welcher CSL-Locator je Citavi-Seitentyp gesetzt wird |
 
 ### Entwicklung
@@ -238,6 +243,10 @@ Zotero's Citavi import only takes citations attached to a spot in a PDF; it disc
 others. FlexAnnotate creates print annotations for them — with the pinpoint, citation-type
 color, and tags. Optionally, the note Zotero creates for the same citation is kept.
 
+Additionally, FlexAnnotate automatically links contributions (in edited books, legal
+commentaries, conference proceedings) to their parent work and among siblings as Zotero
+"Related" items — a relationship that Zotero's native importer ignores.
+
 ### Platforms
 
 Everywhere Zotero 7 or 10 runs: **Windows, macOS** (Intel and Apple Silicon) **and
@@ -285,6 +294,7 @@ powershell -File tools/build.ps1     # -> build/flexannotate.xpi
 | Keep empty placeholder attachments | off | The placeholder stays even when no annotation is attached to it any more |
 | Import citations without a file attachment as print annotations | **on** | Citavi import: citations Zotero discards are imported |
 | Keep the note for the citation | off | Citavi import: the extra note for the imported citation is kept |
+| Link contributions to their parent work | **on** | Citavi import: links contributions to their parent work and among siblings as Zotero "Related" items |
 | Cite pinpoints as | Page → page, Column → column, Paragraph → paragraph, Margin number → paragraph, Other → page | Citavi import: which CSL locator is set per Citavi page type |
 
 ### Development
