@@ -63,6 +63,13 @@ flexannotate-prefs-citavi-keep-notes-description =
     FlexAnnotate removes the note for exactly those quotations it turned into print
     annotations — notes for PDF quotations are left untouched.
 
+flexannotate-prefs-citavi-link-contributions =
+    .label = Link contributions to their parent work
+flexannotate-prefs-citavi-link-contributions-description =
+    Citavi knows which contributions belong to an edited book, legal commentary or
+    conference proceedings. With this option on, FlexAnnotate creates "Related" links
+    between each contribution and its parent work — and among sibling contributions.
+
 flexannotate-prefs-citavi-locator-heading = Cite locations as
 flexannotate-prefs-citavi-locator-page =
     .value = Page

@@ -192,6 +192,25 @@ or when it is anchored *and* the source has a non-placeholder attachment with an
 (`CitaviImport.hasAnnotatableAttachment()`) — the case Zotero already handled. Skip counters are logged by
 reason, so a result of `created 0` is diagnosable.
 
+### Contribution–parent linking
+
+Citavi tracks which contributions belong to an edited book, legal commentary or conference proceedings in
+`<ReferenceReferences>`, a section that Zotero's translator does not process (the `seeAlso` code in
+`translate_item.js:1080-1089` is commented out). `CitaviImport.linkContributions()`, invoked from
+`_runPending()` after the print-quote pass, fills that gap.
+
+Each `<OnetoN>` node carries a semicolon-separated list: the first ID is the parent, the rest are children
+(`ParentID;ChildID1;ChildID2;…`). The method resolves every ID through `_IDMap` and creates bidirectional
+Zotero relations via `addRelatedItem()` — both between parent and child and among siblings within the same
+group. All affected items are saved in a single `Zotero.DB.executeTransaction()` with
+`skipDateModifiedUpdate`, mirroring how `zoteroPane.js:2670-2688` handles user-initiated relations. An
+already-existing relation is silently ignored by `addRelatedItem()`, so re-importing the same export does
+not create duplicates.
+
+The feature is gated by its own preference (`citaviLinkContributions`, default `true`) and runs
+independently of the print-annotation import (`citaviImport`). Both share the Citavi-detection hook
+(`_afterTranslate`), which now sets `_pending` whenever at least one of the two features is enabled.
+
 ## Citavi export format
 
 Verified against a Citavi 7.4 export (`<CitaviExchangeData Version="7.4.0.23">`, UTF-8 with BOM, 57
@@ -208,6 +227,8 @@ Zotero as PDF annotations.
 | `PageRangeNumber` is `-1` when no locator was recorded | Treated as "no page label" |
 | `Text` is often empty with only `CoreStatement` filled — 11 of the 15 unanchored quotes | `buildAnnotationData()` uses `CoreStatement` as the quote when `Text` is empty, unlike `import/citavi.js` |
 | The translator's note follows `<h1>CoreStatement</h1>\n<p>Text</p>\n<i>locator</i>` (`Citavi 5 XML.js:183-206`) | Basis of the note-matching rule below |
+| `ReferenceReferences/OnetoN` links contributions to their parent work; format is `ParentID;ChildID1;ChildID2;…` | `linkContributions()` parses these and creates bidirectional Zotero relations |
+| Zotero's translator does not process `ReferenceReferences` (the `seeAlso` code in `translate_item.js:1080-1089` is commented out) | The plugin fills that gap |
 
 `CitaviImport.QUOTATION_TYPES` maps `<QuotationType>` to color and to how `CoreStatement` and `Text` are
 distributed; unknown values fall back to type 1. Keywords are read as `import/citavi.js:58-65` reads them,

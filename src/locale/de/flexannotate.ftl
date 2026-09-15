@@ -64,6 +64,14 @@ flexannotate-prefs-citavi-keep-notes-description =
     entfernt FlexAnnotate die Notiz zu genau den Zitaten, die es selbst als
     Print-Annotation übernommen hat — Notizen zu PDF-Zitaten bleiben unberührt.
 
+flexannotate-prefs-citavi-link-contributions =
+    .label = Beiträge mit ihrem Hauptwerk verknüpfen
+flexannotate-prefs-citavi-link-contributions-description =
+    Citavi weiß, welche Beiträge zu einem Sammelwerk, Gesetzeskommentar oder Tagungsband
+    gehören. Ist die Option an, legt FlexAnnotate nach dem Import
+    „Verwandte"-Verknüpfungen zwischen dem Beitrag und seinem Hauptwerk an — und zwischen
+    Geschwisterbeiträgen untereinander.
+
 flexannotate-prefs-citavi-locator-heading = Fundstellen zitieren als
 flexannotate-prefs-citavi-locator-page =
     .value = Seite

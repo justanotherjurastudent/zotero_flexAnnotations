@@ -186,7 +186,8 @@ FlexAnnotate.CitaviImport = {
 	 */
 	async _afterTranslate(translation) {
 		try {
-			if (!FlexAnnotate.getPref('citaviImport')) {
+			if (!FlexAnnotate.getPref('citaviImport')
+					&& !FlexAnnotate.getPref('citaviLinkContributions')) {
 				return;
 			}
 			if (!this._isCitavi(translation)) {
@@ -386,11 +387,21 @@ FlexAnnotate.CitaviImport = {
 		if (!translation) {
 			return;
 		}
-		try {
-			await this.importPrintQuotes(translation);
+		if (FlexAnnotate.getPref('citaviImport')) {
+			try {
+				await this.importPrintQuotes(translation);
+			}
+			catch (e) {
+				FlexAnnotate.logError(e);
+			}
 		}
-		catch (e) {
-			FlexAnnotate.logError(e);
+		if (FlexAnnotate.getPref('citaviLinkContributions')) {
+			try {
+				await this.linkContributions(translation);
+			}
+			catch (e) {
+				FlexAnnotate.logError(e);
+			}
 		}
 	},
 
@@ -478,6 +489,147 @@ FlexAnnotate.CitaviImport = {
 			+ `from ${seen} KnowledgeItem(s); removed ${notesRemoved} note(s); skipped `
 			+ Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' '));
 		return created;
+	},
+
+	/**
+	 * Verknüpft Beiträge (Contribution, ContributionInLegalCommentary) mit ihrem
+	 * Hauptwerk als Zotero-Relationen. Citavis `ReferenceReferences` enthält
+	 * `OnetoN`-Knoten im Format `ParentID;ChildID1;ChildID2;…`, die Zoteros
+	 * Citavi-Übersetzer nicht verarbeitet (sein `seeAlso`-Code ist auskommentiert).
+	 *
+	 * Neben Parent↔Child werden auch Geschwister-Beiträge innerhalb derselben
+	 * Gruppe untereinander verknüpft.
+	 *
+	 * @param {Object} translation
+	 * @return {Promise<Number>} Anzahl angelegter Relationen
+	 */
+	async linkContributions(translation) {
+		let idMap = translation?._itemSaver?._IDMap;
+		if (!idMap) {
+			FlexAnnotate.log("Citavi import: no ID map available for linking");
+			return 0;
+		}
+
+		// Stream ist nach importPrintQuotes verbraucht — re-initialisieren
+		translation._io.init('xml/dom');
+		let doc = translation._sandboxZotero.getXML();
+		let ZU = translation._sandboxZotero.Utilities;
+
+		let onetoNNodes = ZU.xpath(doc, '//ReferenceReferences/OnetoN');
+		if (!onetoNNodes.length) {
+			FlexAnnotate.log("Citavi import: no ReferenceReferences found");
+			return 0;
+		}
+
+		// Alle Paare sammeln, um sie in einer DB-Transaktion zu speichern.
+		// Jedes Paar ist [itemA, itemB]; die Relation ist bidirektional.
+		let pairs = [];
+		let skipped = { noParent: 0, noChild: 0, sameItem: 0 };
+		let groupsProcessed = 0;
+
+		for (let node of onetoNNodes) {
+			let text = (node.textContent || '').trim();
+			if (!text) {
+				continue;
+			}
+
+			let ids = text.split(';').map(s => s.trim()).filter(Boolean);
+			if (ids.length < 2) {
+				continue;
+			}
+
+			let parentCitaviID = ids[0];
+			let childCitaviIDs = ids.slice(1);
+
+			let parentZoteroID = idMap[parentCitaviID];
+			if (!parentZoteroID) {
+				skipped.noParent++;
+				continue;
+			}
+
+			let parentItem = await Zotero.Items.getAsync(parentZoteroID);
+			if (!parentItem) {
+				skipped.noParent++;
+				continue;
+			}
+
+			// Kinder auflösen
+			let childItems = [];
+			for (let childCitaviID of childCitaviIDs) {
+				let childZoteroID = idMap[childCitaviID];
+				if (!childZoteroID) {
+					skipped.noChild++;
+					continue;
+				}
+				let childItem = await Zotero.Items.getAsync(childZoteroID);
+				if (!childItem) {
+					skipped.noChild++;
+					continue;
+				}
+				if (childItem.id === parentItem.id) {
+					skipped.sameItem++;
+					continue;
+				}
+				childItems.push(childItem);
+			}
+
+			// Parent ↔ jedes Kind
+			for (let child of childItems) {
+				pairs.push([parentItem, child]);
+			}
+
+			// Geschwister untereinander
+			for (let i = 0; i < childItems.length; i++) {
+				for (let j = i + 1; j < childItems.length; j++) {
+					if (childItems[i].id !== childItems[j].id) {
+						pairs.push([childItems[i], childItems[j]]);
+					}
+				}
+			}
+
+			groupsProcessed++;
+		}
+
+		if (!pairs.length) {
+			FlexAnnotate.log("Citavi import: no contribution relations to create; "
+				+ `groups=${groupsProcessed} skipped `
+				+ Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' '));
+			return 0;
+		}
+
+		// Alle Relationen in einer Transaktion setzen und speichern.
+		// Deduplizieren: ein Item kann durch mehrere Paare berührt werden.
+		let linked = 0;
+		let changedItems = new Set();
+
+		for (let [itemA, itemB] of pairs) {
+			let changed = false;
+			if (itemA.addRelatedItem(itemB)) {
+				changed = true;
+			}
+			if (itemB.addRelatedItem(itemA)) {
+				changed = true;
+			}
+			if (changed) {
+				changedItems.add(itemA);
+				changedItems.add(itemB);
+				linked++;
+			}
+		}
+
+		if (changedItems.size) {
+			let saveOptions = { skipDateModifiedUpdate: true };
+			await Zotero.DB.executeTransaction(async () => {
+				for (let item of changedItems) {
+					await item.save(saveOptions);
+				}
+			});
+		}
+
+		FlexAnnotate.log(`Citavi import: linked ${linked} contribution relation(s) `
+			+ `from ${groupsProcessed} group(s); skipped `
+			+ Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' '));
+		return linked;
 	},
 
 	/**

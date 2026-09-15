@@ -12,6 +12,10 @@ pref("extensions.flexannotate.citaviImport", true);
 // Aus = FlexAnnotate entfernt sie, sobald es das Zitat als Annotation übernommen hat.
 pref("extensions.flexannotate.citaviKeepNotes", false);
 
+// Beiträge (im Sammelwerk, Gesetzeskommentar, Tagungsband) beim Citavi-Import als
+// Zotero-Relationen mit ihrem Hauptwerk und untereinander verknüpfen.
+pref("extensions.flexannotate.citaviLinkContributions", true);
+
 // CSL-Locator je Citavi-Seitentyp (<nt> in PageRange; ohne <nt> meint Citavi eine
 // Seite). Für Randnummern gibt es in CSL keine Entsprechung, deshalb hängt die
 // sinnvolle Wahl am Zitierstil — je nach Stil passt paragraph, opus oder column.
